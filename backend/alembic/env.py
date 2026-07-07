@@ -16,6 +16,9 @@ from app.core.config import settings
 from app.db.base import Base
 from app.models.user import User
 from app.models.session import UserSession
+from app.models.category import Category
+from app.models.receipt import Receipt
+from app.models.expense import Expense
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
