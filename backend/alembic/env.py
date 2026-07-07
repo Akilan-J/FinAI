@@ -14,7 +14,8 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from app.core.config import settings
 from app.db.base import Base
-from app.models.user import User  # import models to register with Base.metadata
+from app.models.user import User
+from app.models.session import UserSession
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
