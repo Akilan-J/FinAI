@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, startTransition } from "react";
+import React, { useState, startTransition, useRef } from "react";
 import * as Icons from "lucide-react";
 import { useCategories, useExpenses, useExpenseMutations, Expense } from "@/hooks/use-expenses";
 import ExpenseTable from "@/components/expenses/ExpenseTable";
 import ExpenseFilters from "@/components/expenses/ExpenseFilters";
 import ExpenseFormDrawer from "@/components/expenses/ExpenseFormDrawer";
+import { useUploadReceipt, useReceiptStatus, Receipt } from "@/hooks/use-receipts";
+import OcrValidationDrawer from "@/components/expenses/OcrValidationDrawer";
 
 export default function ExpensesPage() {
   const { categories } = useCategories();
@@ -45,6 +47,15 @@ export default function ExpensesPage() {
 
   // Checkbox state
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // OCR state and hooks
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { uploadReceipt, loading: uploadLoading } = useUploadReceipt();
+  const { checkStatus } = useReceiptStatus();
+
+  const [ocrStatusText, setOcrStatusText] = useState<string | null>(null);
+  const [activeReceipt, setActiveReceipt] = useState<Receipt | null>(null);
+  const [ocrDrawerOpen, setOcrDrawerOpen] = useState(false);
 
   // Clear filters helper
   const handleClearFilters = () => {
@@ -125,6 +136,55 @@ export default function ExpensesPage() {
     refetch();
   };
 
+  const handleScanReceiptClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setOcrStatusText("Uploading...");
+    try {
+      const receipt = await uploadReceipt(file);
+      setActiveReceipt(receipt);
+      pollReceiptStatus(receipt.id);
+    } catch (err: any) {
+      setOcrStatusText(null);
+      alert(err.message || "Failed to upload receipt file.");
+    }
+  };
+
+  const pollReceiptStatus = (receiptId: string) => {
+    setOcrStatusText("Extracting...");
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts += 1;
+      if (attempts > 30) {
+        clearInterval(interval);
+        setOcrStatusText(null);
+        alert("OCR processing timed out. Please try again.");
+        return;
+      }
+
+      try {
+        const receipt = await checkStatus(receiptId);
+        if (receipt.ocr_status === "completed") {
+          clearInterval(interval);
+          setActiveReceipt(receipt);
+          setOcrStatusText(null);
+          setOcrDrawerOpen(true);
+        } else if (receipt.ocr_status === "failed") {
+          clearInterval(interval);
+          setOcrStatusText(null);
+          alert("OCR extraction failed.");
+        }
+      } catch (err) {
+        // Keep polling
+      }
+    }, 2000);
+  };
+
   // Pagination helper
   const totalPages = Math.ceil(meta.total / limit);
 
@@ -141,6 +201,26 @@ export default function ExpensesPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept="image/*,application/pdf"
+            className="hidden"
+          />
+          <button
+            onClick={handleScanReceiptClick}
+            disabled={uploadLoading || ocrStatusText !== null}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-neutral-800 hover:bg-neutral-900 disabled:opacity-50 text-sm font-semibold text-neutral-300 transition cursor-pointer"
+          >
+            {uploadLoading || ocrStatusText !== null ? (
+              <Icons.Loader2 className="w-4 h-4 animate-spin text-violet-400" />
+            ) : (
+              <Icons.ScanLine className="w-4 h-4 text-violet-400" />
+            )}
+            {ocrStatusText || "Scan Receipt"}
+          </button>
+
           <button
             onClick={handleOpenAddDrawer}
             className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-sm font-semibold text-neutral-50 shadow-lg shadow-violet-500/25 cursor-pointer transition-all duration-200"
@@ -233,6 +313,14 @@ export default function ExpensesPage() {
         expense={activeExpense}
         onSubmit={handleDrawerSubmit}
         loading={mutationLoading}
+      />
+
+      <OcrValidationDrawer
+        isOpen={ocrDrawerOpen}
+        onClose={() => setOcrDrawerOpen(false)}
+        categories={categories}
+        receipt={activeReceipt}
+        onSuccess={refetch}
       />
     </div>
   );
