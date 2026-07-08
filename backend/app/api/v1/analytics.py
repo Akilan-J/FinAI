@@ -2,7 +2,7 @@ import calendar
 from datetime import date
 from decimal import Decimal
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, and_, select
+from sqlalchemy import func, and_, select, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_current_user
 from app.db.session import get_db
@@ -199,10 +199,9 @@ async def get_monthly_trends(
     start_date_oldest, _ = get_month_range(periods[0])
     _, end_date_current = get_month_range(periods[-1])
 
-    # Query expenses grouped by YYYY-MM in date range
     expense_stmt = (
         select(
-            func.to_char(Expense.date, "YYYY-MM").label("month"),
+            func.to_char(Expense.date, literal_column("'YYYY-MM'")).label("month"),
             func.sum(Expense.amount).label("total"),
         )
         .where(
@@ -210,15 +209,14 @@ async def get_monthly_trends(
             Expense.date >= start_date_oldest,
             Expense.date <= end_date_current,
         )
-        .group_by(func.to_char(Expense.date, "YYYY-MM"))
+        .group_by(func.to_char(Expense.date, literal_column("'YYYY-MM'")))
     )
     expense_res = await db.execute(expense_stmt)
     expense_map = {row[0]: row[1] for row in expense_res.all()}
 
-    # Query income grouped by YYYY-MM in date range
     income_stmt = (
         select(
-            func.to_char(Income.date, "YYYY-MM").label("month"),
+            func.to_char(Income.date, literal_column("'YYYY-MM'")).label("month"),
             func.sum(Income.amount).label("total"),
         )
         .where(
@@ -226,7 +224,7 @@ async def get_monthly_trends(
             Income.date >= start_date_oldest,
             Income.date <= end_date_current,
         )
-        .group_by(func.to_char(Income.date, "YYYY-MM"))
+        .group_by(func.to_char(Income.date, literal_column("'YYYY-MM'")))
     )
     income_res = await db.execute(income_stmt)
     income_map = {row[0]: row[1] for row in income_res.all()}
