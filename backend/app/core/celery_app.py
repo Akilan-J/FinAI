@@ -1,6 +1,8 @@
 from celery import Celery
 from app.core.config import settings
 
+import os
+
 celery = Celery(
     "tasks",
     broker=settings.REDIS_URL,
@@ -14,4 +16,5 @@ celery.conf.update(
     timezone="UTC",
     enable_utc=True,
     imports=["app.tasks.ocr"],
+    task_always_eager=os.environ.get("CELERY_ALWAYS_EAGER", "False").lower() == "true",
 )
