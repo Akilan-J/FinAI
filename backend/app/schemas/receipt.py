@@ -1,6 +1,7 @@
-from datetime import datetime
+from datetime import datetime, date as dt_date
+from decimal import Decimal
 from uuid import UUID
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ReceiptResponse(BaseModel):
@@ -14,3 +15,11 @@ class ReceiptResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReceiptConvertRequest(BaseModel):
+    category_id: UUID
+    amount: Decimal = Field(..., gt=0)
+    merchant: str = Field(..., min_length=1, max_length=255)
+    date: dt_date
+    notes: str | None = None
