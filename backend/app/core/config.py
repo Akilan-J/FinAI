@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://localhost:6379/0"
+    CELERY_ALWAYS_EAGER: bool = True
 
     # JWT Security
     SECRET_KEY: str = "super_secret_session_signing_key_finai_2026"
