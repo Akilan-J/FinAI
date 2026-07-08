@@ -58,6 +58,7 @@ async def upload_receipt(
     await db.refresh(receipt)
 
     process_receipt_ocr_task.delay(str(receipt.id))
+    await db.refresh(receipt)
 
     return ResponseEnvelope(data=ReceiptResponse.model_validate(receipt))
 
