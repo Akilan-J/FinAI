@@ -37,7 +37,7 @@ def run_tests():
     dummy_path = os.path.join(os.getcwd(), "tests", dummy_filename)
     os.makedirs(os.path.dirname(dummy_path), exist_ok=True)
     with open(dummy_path, "wb") as f:
-        f.write(b"PNG mock receipt file content")
+        f.write(b"starbucks receipt mockup content")
         
     # 4. Upload file
     print("\nStep 4: Uploading receipt to POST /receipts/upload...")
