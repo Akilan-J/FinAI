@@ -16,5 +16,5 @@ celery.conf.update(
     timezone="UTC",
     enable_utc=True,
     imports=["app.tasks.ocr"],
-    task_always_eager=os.environ.get("CELERY_ALWAYS_EAGER", "False").lower() == "true",
+    task_always_eager=settings.CELERY_ALWAYS_EAGER,
 )
