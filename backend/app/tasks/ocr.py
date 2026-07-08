@@ -1,11 +1,35 @@
 import asyncio
 import os
+import threading
 from uuid import UUID
 from sqlalchemy.future import select
 from app.core.celery_app import celery
 from app.db.session import async_session_maker
 from app.models.receipt import Receipt
 from app.services.ocr import perform_ocr, extract_receipt_fields
+
+
+def run_async(coro):
+    result_val = []
+    error_val = []
+
+    def target():
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            res = loop.run_until_complete(coro)
+            result_val.append(res)
+            loop.close()
+        except Exception as e:
+            error_val.append(e)
+
+    t = threading.Thread(target=target)
+    t.start()
+    t.join()
+
+    if error_val:
+        raise error_val[0]
+    return result_val[0] if result_val else None
 
 
 @celery.task(name="process_receipt_ocr_task")
@@ -46,4 +70,4 @@ def process_receipt_ocr_task(receipt_id_str: str):
 
             await db.commit()
 
-    asyncio.run(_run())
+    run_async(_run())
