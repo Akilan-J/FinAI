@@ -4,9 +4,14 @@ import threading
 from uuid import UUID
 from sqlalchemy.future import select
 from app.core.celery_app import celery
-from app.db.session import async_session_maker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy.pool import NullPool
+from app.core.config import settings
 from app.models.receipt import Receipt
 from app.services.ocr import perform_ocr, extract_receipt_fields
+
+celery_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+celery_session_maker = async_sessionmaker(celery_engine, expire_on_commit=False)
 
 
 def run_async(coro):
@@ -36,7 +41,7 @@ def run_async(coro):
 def process_receipt_ocr_task(receipt_id_str: str):
     async def _run():
         receipt_id = UUID(receipt_id_str)
-        async with async_session_maker() as db:
+        async with celery_session_maker() as db:
             result = await db.execute(select(Receipt).where(Receipt.id == receipt_id))
             receipt = result.scalars().first()
             if not receipt:
