@@ -439,7 +439,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                 model="google/gemini-2.5-flash",
                 messages=openai_messages,
                 tools=tools,
-                tool_choice="auto"
+                tool_choice="auto",
+                max_tokens=2048
             )
             
             message = response.choices[0].message
@@ -493,7 +494,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                     
                 response = await client.chat.completions.create(
                     model="google/gemini-2.5-flash",
-                    messages=openai_messages
+                    messages=openai_messages,
+                    max_tokens=2048
                 )
                 message = response.choices[0].message
                 
