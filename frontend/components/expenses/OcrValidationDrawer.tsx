@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Category } from "@/hooks/use-expenses";
 import { useConvertReceipt, Receipt } from "@/hooks/use-receipts";
+import { dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
 
 interface OcrValidationDrawerProps {
   isOpen: boolean;
@@ -38,7 +39,7 @@ export default function OcrValidationDrawer({
       const ext = receipt.extracted_json || {};
       setAmount(ext.amount?.toString() || "");
       setMerchant(ext.merchant || "");
-      setDate(ext.date || new Date().toISOString().split("T")[0]);
+      setDate(dbDateToInputDate(ext.date || new Date().toISOString().split("T")[0]));
       setNotes(ext.notes || "OCR extracted expense");
       
       // Default category fallback to 'Others' or first category
@@ -63,17 +64,26 @@ export default function OcrValidationDrawer({
       return;
     }
 
-    if (!date) {
-      setFormError("Please select a date.");
+    if (!date.trim()) {
+      setFormError("Please enter a date.");
       return;
     }
+
+    // Validate DD/MM/YYYY format
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    if (!date.match(dateRegex)) {
+      setFormError("Please enter date in DD/MM/YYYY format.");
+      return;
+    }
+
+    const formattedDate = inputDateToDbDate(date);
 
     try {
       await convertReceipt(receipt.id, {
         amount: numericAmount,
         merchant: merchant.trim(),
         category_id: categoryId,
-        date,
+        date: formattedDate,
         notes: notes.trim() || null,
       });
       onSuccess();
@@ -211,10 +221,11 @@ export default function OcrValidationDrawer({
                     Transaction Date
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-neutral-300 outline-none transition cursor-pointer"
+                    className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-neutral-100 placeholder-neutral-600 outline-none transition"
+                    placeholder="DD/MM/YYYY"
                     required
                   />
                 </div>
