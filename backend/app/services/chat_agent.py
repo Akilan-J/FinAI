@@ -226,7 +226,8 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
     prompt_lower = prompt.lower()
     
     if "expense" in prompt_lower or "spent" in prompt_lower:
-        if any(keyword in prompt_lower for keyword in ["log", "add", "create", "new", "record"]):
+        words = set(re.findall(r'\b\w+\b', prompt_lower))
+        if any(keyword in words for keyword in ["log", "add", "create", "new", "record"]):
             # Split by conjunctions to identify multiple expenses
             segments = re.split(r'\band\b|\balso\b|\bthen\b|,', prompt)
             expenses_logged = []
@@ -260,7 +261,8 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
             yield f"🤖 *Simulation Mode (No API Key)*:\n\nHere are your recent expenses:\n{result}"
             
     elif "budget" in prompt_lower:
-        if any(keyword in prompt_lower for keyword in ["set", "add", "create", "limit"]):
+        words = set(re.findall(r'\b\w+\b', prompt_lower))
+        if any(keyword in words for keyword in ["set", "add", "create", "limit"]):
             amount_match = re.search(r'(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', prompt_lower)
             amount = float(amount_match.group(1)) if amount_match else 5000.0
             
