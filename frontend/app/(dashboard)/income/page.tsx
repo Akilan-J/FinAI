@@ -5,6 +5,7 @@ import * as Icons from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useIncome, useIncomeMutations, Income } from "@/hooks/use-income";
 import ConfirmModal from "@/components/ConfirmModal";
+import { formatDateToDDMMYYYY } from "@/lib/utils";
 
 export default function IncomePage() {
   // Filters state
@@ -202,11 +203,7 @@ export default function IncomePage() {
               {incomes.map((inc) => (
                 <tr key={inc.id} className="hover:bg-neutral-900/30 transition text-neutral-300">
                   <td className="py-4 px-5 whitespace-nowrap text-xs text-neutral-400">
-                    {new Date(inc.date).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {formatDateToDDMMYYYY(inc.date)}
                   </td>
                   <td className="py-4 px-5 font-semibold text-neutral-100 max-w-[200px] truncate">
                     {inc.source}
