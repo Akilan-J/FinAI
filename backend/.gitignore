@@ -15,3 +15,7 @@ env/
 
 # OS files
 .DS_Store
+
+# Uploaded Static Files
+static/
+
