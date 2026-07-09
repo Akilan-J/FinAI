@@ -58,6 +58,7 @@ export async function fetchApi(path: string, options: FetchOptions = {}): Promis
   const url = `${BASE_URL}${path}`;
 
   const headers = new Headers(options.headers || {});
+  options.credentials = "include";
 
   if (options.json) {
     headers.set("Content-Type", "application/json");
