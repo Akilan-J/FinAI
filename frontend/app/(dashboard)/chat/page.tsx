@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/stores/auth-store";
 import { fetchApi } from "@/lib/api-client";
-import { Icons } from "@/components/icons";
+import { Sparkles, Receipt, Coffee, Layers, TrendingUp, Send } from "lucide-react";
 
 interface Message {
   role: "user" | "model";
@@ -164,7 +164,7 @@ export default function ChatPage() {
       <div className="w-full md:w-80 flex flex-col gap-4 flex-shrink-0 z-10">
         <div className="border border-neutral-900 bg-neutral-950/60 backdrop-blur-md p-5 rounded-2xl">
           <h3 className="text-sm font-bold text-neutral-200 flex items-center gap-2 mb-1">
-            <Icons.Sparkles className="w-4 h-4 text-violet-500" />
+            <Sparkles className="w-4 h-4 text-violet-500" />
             Suggested Actions
           </h3>
           <p className="text-xs text-neutral-500 mb-4">
@@ -181,10 +181,10 @@ export default function ChatPage() {
               >
                 <div className="flex items-center gap-2 text-xs font-bold text-neutral-300 group-hover:text-violet-400 transition-colors">
                   <span className="p-1 rounded-md bg-neutral-900/60 border border-neutral-800/40 text-neutral-400 group-hover:text-violet-400 group-hover:border-violet-500/20 transition-all">
-                    {prompt.icon === "Receipt" && <Icons.Receipt className="w-3.5 h-3.5" />}
-                    {prompt.icon === "Coffee" && <Icons.Coffee className="w-3.5 h-3.5" />}
-                    {prompt.icon === "Layers" && <Icons.Layers className="w-3.5 h-3.5" />}
-                    {prompt.icon === "TrendingUp" && <Icons.TrendingUp className="w-3.5 h-3.5" />}
+                    {prompt.icon === "Receipt" && <Receipt className="w-3.5 h-3.5" />}
+                    {prompt.icon === "Coffee" && <Coffee className="w-3.5 h-3.5" />}
+                    {prompt.icon === "Layers" && <Layers className="w-3.5 h-3.5" />}
+                    {prompt.icon === "TrendingUp" && <TrendingUp className="w-3.5 h-3.5" />}
                   </span>
                   {prompt.label}
                 </div>
@@ -203,7 +203,7 @@ export default function ChatPage() {
         <div className="px-6 py-4 border-b border-neutral-900 bg-neutral-950/80 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-violet-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-violet-500/10">
-              <Icons.Sparkles className="w-4.5 h-4.5 text-neutral-50" />
+              <Sparkles className="w-4.5 h-4.5 text-neutral-50" />
             </div>
             <div>
               <h2 className="text-sm font-bold text-neutral-200">FinAI Chat Assistant</h2>
@@ -220,7 +220,7 @@ export default function ChatPage() {
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center py-12 px-4">
               <div className="w-16 h-16 rounded-2xl bg-neutral-900/40 border border-neutral-800/60 flex items-center justify-center mb-4">
-                <Icons.Sparkles className="w-8 h-8 text-neutral-500" />
+                <Sparkles className="w-8 h-8 text-neutral-500" />
               </div>
               <h3 className="text-neutral-300 font-bold">Ask your FinAI Assistant</h3>
               <p className="text-xs text-neutral-500 max-w-sm mt-1">
@@ -292,7 +292,7 @@ export default function ChatPage() {
               disabled={loading || !input.trim()}
               className="bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 disabled:from-neutral-800 disabled:to-neutral-800 disabled:text-neutral-500 text-neutral-50 font-semibold p-3 rounded-xl transition duration-300 shadow-md shadow-violet-500/10 cursor-pointer flex items-center justify-center disabled:cursor-not-allowed flex-shrink-0"
             >
-              <Icons.Send className="w-4 h-4" />
+              <Send className="w-4 h-4" />
             </button>
           </form>
         </div>
