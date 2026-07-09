@@ -23,6 +23,7 @@ import {
 } from "@/hooks/use-analytics";
 import { useExpenses } from "@/hooks/use-expenses";
 import { CategoryIcon } from "@/components/expenses/ExpenseTable";
+import { formatDateToDDMMYYYY } from "@/lib/utils";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -393,10 +394,7 @@ export default function DashboardPage() {
                       return (
                         <tr key={expense.id} className="hover:bg-neutral-900/20 transition">
                           <td className="py-3 px-3 text-neutral-400 whitespace-nowrap">
-                            {new Date(expense.date).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                            })}
+                            {formatDateToDDMMYYYY(expense.date)}
                           </td>
                           <td className="py-3 px-3 font-semibold text-neutral-200">
                             {expense.merchant}
