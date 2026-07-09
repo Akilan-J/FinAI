@@ -3,6 +3,7 @@
 import React from "react";
 import * as Icons from "lucide-react";
 import { Expense } from "@/hooks/use-expenses";
+import { formatDateToDDMMYYYY } from "@/lib/utils";
 
 export function CategoryIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
   const IconComponent = (Icons as any)[name] || Icons.HelpCircle;
@@ -120,11 +121,7 @@ export default function ExpenseTable({
                     />
                   </td>
                   <td className="py-4 px-5 whitespace-nowrap text-xs text-neutral-400">
-                    {new Date(expense.date).toLocaleDateString(undefined, {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })}
+                    {formatDateToDDMMYYYY(expense.date)}
                   </td>
                   <td className="py-4 px-5 font-medium text-neutral-100 max-w-[180px] truncate">
                     {expense.merchant}
