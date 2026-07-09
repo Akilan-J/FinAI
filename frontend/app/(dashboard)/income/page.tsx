@@ -5,7 +5,7 @@ import * as Icons from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useIncome, useIncomeMutations, Income } from "@/hooks/use-income";
 import ConfirmModal from "@/components/ConfirmModal";
-import { formatDateToDDMMYYYY } from "@/lib/utils";
+import { formatDateToDDMMYYYY, dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
 
 export default function IncomePage() {
   // Filters state
@@ -36,7 +36,7 @@ export default function IncomePage() {
   const handleOpenAddDrawer = () => {
     setSource("");
     setAmount("");
-    setDate(new Date().toISOString().split("T")[0]); // today
+    setDate(dbDateToInputDate(new Date().toISOString().split("T")[0])); // today
     setNotes("");
     setIsRecurring(false);
     setFormError(null);
@@ -86,16 +86,25 @@ export default function IncomePage() {
       return;
     }
 
-    if (!date) {
-      setFormError("Please select a date.");
+    if (!date.trim()) {
+      setFormError("Please enter a date.");
       return;
     }
+
+    // Validate DD/MM/YYYY format
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    if (!date.match(dateRegex)) {
+      setFormError("Please enter date in DD/MM/YYYY format.");
+      return;
+    }
+
+    const formattedDate = inputDateToDbDate(date);
 
     try {
       await createIncome({
         source: source.trim(),
         amount: numericAmount,
-        date,
+        date: formattedDate,
         notes: notes.trim() || null,
         is_recurring: isRecurring,
       });
@@ -350,10 +359,11 @@ export default function IncomePage() {
                     Date Received
                   </label>
                   <input
-                    type="date"
+                    type="text"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-neutral-300 outline-none transition cursor-pointer"
+                    className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-neutral-100 placeholder-neutral-600 outline-none transition"
+                    placeholder="DD/MM/YYYY"
                     required
                   />
                 </div>
