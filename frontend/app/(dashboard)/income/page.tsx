@@ -4,6 +4,7 @@ import React, { useState, startTransition } from "react";
 import * as Icons from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useIncome, useIncomeMutations, Income } from "@/hooks/use-income";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function IncomePage() {
   // Filters state
@@ -41,14 +42,25 @@ export default function IncomePage() {
     setDrawerOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this income entry?")) {
-      try {
-        await deleteIncome(id);
-        refetch();
-      } catch (err: any) {
-        alert(err.message || "Failed to delete income log");
-      }
+  // Confirm modal state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDelete = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return;
+    setDeleteLoading(true);
+    try {
+      await deleteIncome(confirmDeleteId);
+      refetch();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete income log");
+    } finally {
+      setDeleteLoading(false);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -404,6 +416,16 @@ export default function IncomePage() {
           </>
         )}
       </AnimatePresence>
+
+      <ConfirmModal
+        open={confirmDeleteId !== null}
+        title="Delete Income Entry"
+        message="This income record will be permanently removed. This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }
