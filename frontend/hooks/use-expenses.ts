@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchApi } from "@/lib/api-client";
 
 export interface Category {
@@ -65,10 +65,13 @@ export function useExpenses(filters: ExpenseFilters = {}) {
   const [meta, setMeta] = useState({ page: 1, limit: 20, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedOnce = useRef(false);
 
   const fetchExpenses = useCallback(async () => {
     try {
-      setLoading(true);
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
 
       const params = new URLSearchParams();
       if (filters.page) params.append("page", filters.page.toString());
@@ -86,6 +89,7 @@ export function useExpenses(filters: ExpenseFilters = {}) {
       if (response.meta) {
         setMeta(response.meta);
       }
+      hasFetchedOnce.current = true;
     } catch (err: any) {
       setError(err.message || "Failed to fetch expenses");
     } finally {

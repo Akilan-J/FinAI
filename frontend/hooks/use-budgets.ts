@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchApi } from "@/lib/api-client";
 import { Category } from "@/hooks/use-expenses";
 
@@ -24,14 +24,18 @@ export function useBudgets(period: string) {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedOnce = useRef(false);
 
   const fetchBudgets = useCallback(async () => {
     if (!period) return;
     try {
-      setLoading(true);
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
       setError(null);
       const response = await fetchApi(`/budgets?period=${period}`);
       setBudgets(response.data || []);
+      hasFetchedOnce.current = true;
     } catch (err: any) {
       setError(err.message || "Failed to fetch budgets");
     } finally {

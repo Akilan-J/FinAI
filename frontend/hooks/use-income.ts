@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { fetchApi } from "@/lib/api-client";
 
 export interface Income {
@@ -24,10 +24,14 @@ export function useIncome(filters: IncomeFilters = {}) {
   const [meta, setMeta] = useState({ page: 1, limit: 20, total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const hasFetchedOnce = useRef(false);
 
   const fetchIncome = useCallback(async () => {
     try {
-      setLoading(true);
+      // Only show full loading skeleton on initial load, not on refetches
+      if (!hasFetchedOnce.current) {
+        setLoading(true);
+      }
       setError(null);
 
       const params = new URLSearchParams();
@@ -43,6 +47,7 @@ export function useIncome(filters: IncomeFilters = {}) {
       if (response.meta) {
         setMeta(response.meta);
       }
+      hasFetchedOnce.current = true;
     } catch (err: any) {
       setError(err.message || "Failed to fetch income logs");
     } finally {
