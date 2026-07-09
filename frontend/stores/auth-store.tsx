@@ -35,10 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(meResponse.data);
       } else {
         setUser(null);
+        if (typeof document !== "undefined") {
+          document.cookie = "refresh_token=; path=/; max-age=0;";
+        }
       }
     } catch (err) {
       setUser(null);
       setAccessToken(null);
+      if (typeof document !== "undefined") {
+        document.cookie = "refresh_token=; path=/; max-age=0;";
+      }
     } finally {
       setLoading(false);
     }
