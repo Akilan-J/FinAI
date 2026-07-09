@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/stores/auth-store";
-import { fetchApi } from "@/lib/api-client";
+import { fetchApi, getAccessToken } from "@/lib/api-client";
 import { Sparkles, Receipt, Coffee, Layers, TrendingUp, Send } from "lucide-react";
 
 interface Message {
@@ -69,8 +69,7 @@ export default function ChatPage() {
     setMessages([...updatedMessages, assistantMessagePlaceholder]);
 
     try {
-      // Fetch access token from local auth cookies/headers
-      const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+      const token = getAccessToken();
       
       const response = await fetch("http://localhost:8000/api/v1/chat/stream", {
         method: "POST",
