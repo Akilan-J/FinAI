@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Category, Expense } from "@/hooks/use-expenses";
+import { dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
 
 interface ExpenseFormDrawerProps {
   isOpen: boolean;
@@ -45,14 +46,14 @@ export default function ExpenseFormDrawer({
         setAmount(expense.amount.toString());
         setMerchant(expense.merchant);
         setPaymentMethod(expense.payment_method);
-        setDate(expense.date);
+        setDate(dbDateToInputDate(expense.date));
         setCategoryId(expense.category_id || "");
         setNotes(expense.notes || "");
       } else {
         setAmount("");
         setMerchant("");
         setPaymentMethod("card");
-        setDate(new Date().toISOString().split("T")[0]); // today's date
+        setDate(dbDateToInputDate(new Date().toISOString().split("T")[0])); // today's date
         // default to 'Others' or first category
         const others = categories.find((c) => c.name === "Others");
         setCategoryId(others?.id || categories[0]?.id || "");
@@ -76,17 +77,26 @@ export default function ExpenseFormDrawer({
       return;
     }
 
-    if (!date) {
-      setFormError("Please select a date.");
+    if (!date.trim()) {
+      setFormError("Please enter a date.");
       return;
     }
+
+    // Validate DD/MM/YYYY format
+    const dateRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+    if (!date.match(dateRegex)) {
+      setFormError("Please enter date in DD/MM/YYYY format.");
+      return;
+    }
+
+    const formattedDate = inputDateToDbDate(date);
 
     try {
       await onSubmit({
         amount: numericAmount,
         merchant: merchant.trim(),
         payment_method: paymentMethod,
-        date,
+        date: formattedDate,
         category_id: categoryId || null,
         notes: notes.trim() || null,
       });
@@ -221,11 +231,12 @@ export default function ExpenseFormDrawer({
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
                   Transaction Date
                 </label>
-                <input
-                  type="date"
+                 <input
+                  type="text"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-neutral-300 outline-none transition cursor-pointer"
+                  className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-3 text-sm text-neutral-100 placeholder-neutral-600 outline-none transition"
+                  placeholder="DD/MM/YYYY"
                   required
                 />
               </div>
