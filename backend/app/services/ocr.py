@@ -18,7 +18,82 @@ def perform_ocr(file_path: str) -> str:
             if texts:
                 return texts[0].description
         except Exception as e:
-            print(f"Google Cloud Vision OCR error: {e}. Falling back to template matching.")
+            print(f"Google Cloud Vision OCR error: {e}. Falling back to other providers.")
+
+    # Try OpenRouter Multimodal OCR
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if openrouter_key:
+        try:
+            import base64
+            from openai import OpenAI
+            
+            client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=openrouter_key
+            )
+            
+            with open(file_path, "rb") as f:
+                base64_image = base64.b64encode(f.read()).decode("utf-8")
+                
+            ext = os.path.splitext(file_path)[1].lower()
+            mime_type = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+            
+            response = client.chat.completions.create(
+                model="google/gemini-2.5-flash",
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": (
+                                    "Analyze this receipt image. Extract all text content verbatim. "
+                                    "Be precise and output the complete lines as seen on the receipt. "
+                                    "Include details like merchant name, items, date, total amount, taxes."
+                                )
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:{mime_type};base64,{base64_image}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.0
+            )
+            extracted_text = response.choices[0].message.content
+            if extracted_text:
+                return extracted_text
+        except Exception as e:
+            print(f"OpenRouter multimodal OCR error: {e}")
+
+    # Try Gemini API Multimodal OCR
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            
+            with open(file_path, "rb") as f:
+                image_data = f.read()
+                
+            ext = os.path.splitext(file_path)[1].lower()
+            mime_type = "image/jpeg" if ext in [".jpg", ".jpeg"] else "image/png"
+            
+            response = model.generate_content([
+                {
+                    "mime_type": mime_type,
+                    "data": image_data
+                },
+                "Analyze this receipt image. Extract all text content verbatim. Include details like merchant, total, date."
+            ])
+            if response.text:
+                return response.text
+        except Exception as e:
+            print(f"Gemini direct multimodal OCR error: {e}")
 
     filename = os.path.basename(file_path).lower()
     file_content = ""
