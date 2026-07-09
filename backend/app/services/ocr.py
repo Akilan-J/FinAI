@@ -48,8 +48,9 @@ def perform_ocr(file_path: str) -> str:
                                 "type": "text",
                                 "text": (
                                     "Analyze this receipt image. Extract all text content verbatim. "
-                                    "Be precise and output the complete lines as seen on the receipt. "
-                                    "Include details like merchant name, items, date, total amount, taxes."
+                                    "Output ONLY the raw lines of text found on the receipt itself. "
+                                    "Do not include any introductions, explanations, greetings, code blocks, or preamble. "
+                                    "Start immediately with the first line of text printed on the receipt."
                                 )
                             },
                             {
