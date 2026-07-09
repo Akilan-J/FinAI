@@ -61,6 +61,7 @@ def perform_ocr(file_path: str) -> str:
                         ]
                     }
                 ],
+                max_tokens=1000,
                 temperature=0.0
             )
             extracted_text = response.choices[0].message.content
