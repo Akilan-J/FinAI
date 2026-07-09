@@ -330,9 +330,179 @@ def create_budget(amount: float, category_name: str, period: str = None) -> str:
 
 
 async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.UUID):
-    gemini_key = os.getenv("GEMINI_API_KEY")
     latest_prompt = messages[-1]["content"] if messages else ""
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    gemini_key = os.getenv("GEMINI_API_KEY")
     
+    if openrouter_key:
+        try:
+            import json
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=openrouter_key
+            )
+            
+            tools = [
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "list_expenses",
+                        "description": "List the user's recent expenses logs.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "limit": {"type": "integer", "description": "The maximum number of recent expenses to list."}
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "list_budgets",
+                        "description": "List active budget limits for the month (format YYYY-MM).",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "period": {"type": "string", "description": "YYYY-MM format"}
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "get_analytics_summary",
+                        "description": "Get financial analytics summary (income, total spent, savings, rate) for a month (format YYYY-MM).",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "period": {"type": "string", "description": "YYYY-MM format"}
+                            }
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "create_expense",
+                        "description": "Log a new expense.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "amount": {"type": "number"},
+                                "category_name": {"type": "string"},
+                                "merchant": {"type": "string"},
+                                "date_str": {"type": "string", "description": "YYYY-MM-DD format"}
+                            },
+                            "required": ["amount", "category_name", "merchant"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "create_budget",
+                        "description": "Set or update a budget limit for a category and period.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "amount": {"type": "number"},
+                                "category_name": {"type": "string"},
+                                "period": {"type": "string", "description": "YYYY-MM format"}
+                            },
+                            "required": ["amount", "category_name"]
+                        }
+                    }
+                }
+            ]
+
+            openai_messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
+                        "Use function calling tools when the user requests database information, logging, or budgets. "
+                        "Format responses nicely in markdown."
+                    )
+                }
+            ]
+            for m in messages:
+                role = "assistant" if m["role"] == "model" else m["role"]
+                openai_messages.append({"role": role, "content": m["content"]})
+                
+            response = await client.chat.completions.create(
+                model="google/gemini-2.5-flash",
+                messages=openai_messages,
+                tools=tools,
+                tool_choice="auto"
+            )
+            
+            message = response.choices[0].message
+            
+            while message.tool_calls:
+                assistant_msg = {
+                    "role": "assistant",
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": tc.type,
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments
+                            }
+                        } for tc in message.tool_calls
+                    ]
+                }
+                if message.content:
+                    assistant_msg["content"] = message.content
+                    
+                openai_messages.append(assistant_msg)
+                
+                for tool_call in message.tool_calls:
+                    name = tool_call.function.name
+                    args = json.loads(tool_call.function.arguments)
+                    
+                    if name == "list_expenses":
+                        res_val = await list_expenses_tool(db, user_id, int(args.get("limit", 10)))
+                    elif name == "list_budgets":
+                        res_val = await list_budgets_tool(db, user_id, args.get("period"))
+                    elif name == "get_analytics_summary":
+                        res_val = await get_analytics_summary_tool(db, user_id, args.get("period"))
+                    elif name == "create_expense":
+                        res_val = await create_expense_tool(
+                            db, user_id, float(args["amount"]), str(args["category_name"]), str(args["merchant"]), args.get("date_str")
+                        )
+                    elif name == "create_budget":
+                        res_val = await create_budget_tool(
+                            db, user_id, float(args["amount"]), str(args["category_name"]), args.get("period")
+                        )
+                    else:
+                        res_val = f"Error: Tool {name} not found."
+                    
+                    openai_messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "name": name,
+                        "content": json.dumps({"result": res_val})
+                    })
+                    
+                response = await client.chat.completions.create(
+                    model="google/gemini-2.5-flash",
+                    messages=openai_messages
+                )
+                message = response.choices[0].message
+                
+            if message.content:
+                yield message.content
+            return
+        except Exception as err:
+            yield f"⚠️ *OpenRouter Error*: {str(err)}\n\nFalling back to local simulator:\n"
+            async for chunk in mock_agent_stream(latest_prompt, db, user_id):
+                yield chunk
+            return
+
     if not gemini_key:
         async for chunk in mock_agent_stream(latest_prompt, db, user_id):
             yield chunk
@@ -354,10 +524,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
             )
         )
         
-        # Build chat history
         chat = model.start_chat(enable_automatic_function_calling=False)
         
-        # Load history
         for msg in messages[:-1]:
             chat.history.append(
                 content_types.to_content({
@@ -368,7 +536,6 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
             
         response = chat.send_message(latest_prompt)
         
-        # Resolve any tool-calling loops
         while response.function_calls:
             for function_call in response.function_calls:
                 name = function_call.name
@@ -405,7 +572,6 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                     })
                 )
         
-        # Yield the final answer
         if response.text:
             yield response.text
             
@@ -413,3 +579,4 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
         yield f"⚠️ *Gemini Error*: {str(err)}\n\nFalling back to local simulator:\n"
         async for chunk in mock_agent_stream(latest_prompt, db, user_id):
             yield chunk
+
