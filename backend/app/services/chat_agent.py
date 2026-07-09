@@ -227,22 +227,34 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
     
     if "expense" in prompt_lower or "spent" in prompt_lower:
         if any(keyword in prompt_lower for keyword in ["log", "add", "create", "new", "record"]):
-            amount_match = re.search(r'(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', prompt_lower)
-            amount = float(amount_match.group(1)) if amount_match else 150.0
+            # Split by conjunctions to identify multiple expenses
+            segments = re.split(r'\band\b|\balso\b|\bthen\b|,', prompt)
+            expenses_logged = []
             
-            category = "Other"
-            for cat in ["food", "rent", "travel", "coffee", "groceries", "utilities", "shopping", "entertainment"]:
-                if cat in prompt_lower:
-                    category = cat
-                    break
+            for seg in segments:
+                seg_lower = seg.lower()
+                amount_match = re.search(r'(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', seg_lower)
+                if amount_match:
+                    amount = float(amount_match.group(1))
+                    
+                    category = "Other"
+                    for cat in ["food", "rent", "travel", "coffee", "groceries", "utilities", "shopping", "entertainment"]:
+                        if cat in seg_lower:
+                            category = cat
+                            break
+                            
+                    merchant = "Store"
+                    merchant_match = re.search(r'(?:at|from|to)\s+([a-zA-Z0-9\s]+)', seg)
+                    if merchant_match:
+                        merchant = merchant_match.group(1).strip()
+                    
+                    result = await create_expense_tool(db, user_id, amount, category, merchant)
+                    expenses_logged.append(result)
             
-            merchant = "Store"
-            merchant_match = re.search(r'(?:at|from|to)\s+([a-zA-Z0-9\s]+)', prompt)
-            if merchant_match:
-                merchant = merchant_match.group(1).strip()
-            
-            result = await create_expense_tool(db, user_id, amount, category, merchant)
-            yield f"🤖 *Simulation Mode (No API Key)*:\n\n{result}"
+            if expenses_logged:
+                yield f"🤖 *Simulation Mode (No API Key)*:\n\n" + "\n".join(expenses_logged)
+            else:
+                yield "🤖 *Simulation Mode (No API Key)*:\n\nCould not parse expense details. Please specify an amount and a merchant or description."
         else:
             result = await list_expenses_tool(db, user_id)
             yield f"🤖 *Simulation Mode (No API Key)*:\n\nHere are your recent expenses:\n{result}"
@@ -426,6 +438,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                     "role": "system",
                     "content": (
                         "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
+                        "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee and 200 on lunch'), "
+                        "you must generate separate parallel tool calls for each individual expense to record all of them. "
                         "Use function calling tools when the user requests database information, logging, or budgets. "
                         "Format responses nicely in markdown."
                     )
@@ -524,6 +538,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
             tools=[list_expenses, list_budgets, get_analytics_summary, create_expense, create_budget],
             system_instruction=(
                 "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
+                "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee and 200 on lunch'), "
+                "you must generate separate parallel tool calls for each individual expense to record all of them. "
                 "Use function calling tools when the user requests database information, logging, or budgets. "
                 "Format responses nicely in markdown."
             )
