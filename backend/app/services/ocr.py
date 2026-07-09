@@ -47,10 +47,11 @@ def perform_ocr(file_path: str) -> str:
                             {
                                 "type": "text",
                                 "text": (
-                                    "Analyze this receipt image. Extract all text content verbatim. "
-                                    "Output ONLY the raw lines of text found on the receipt itself. "
-                                    "Do not include any introductions, explanations, greetings, code blocks, or preamble. "
-                                    "Start immediately with the first line of text printed on the receipt."
+                                    "Analyze this receipt image. Output exactly three lines of plain text, nothing else:\n"
+                                    "Line 1: The merchant name (e.g., Dennis Stores, Starbucks, Walmart)\n"
+                                    "Line 2: 'Date: YYYY-MM-DD' (the transaction date, e.g., Date: 2026-06-25)\n"
+                                    "Line 3: 'Total Amount: 0.00' (the grand total amount, e.g., Total Amount: 1580.00)\n"
+                                    "Do not include any conversational text, code blocks, or markdown headers."
                                 )
                             },
                             {
@@ -90,7 +91,13 @@ def perform_ocr(file_path: str) -> str:
                     "mime_type": mime_type,
                     "data": image_data
                 },
-                "Analyze this receipt image. Extract all text content verbatim. Include details like merchant, total, date."
+                (
+                    "Analyze this receipt image. Output exactly three lines of plain text, nothing else:\n"
+                    "Line 1: The merchant name (e.g., Dennis Stores, Starbucks, Walmart)\n"
+                    "Line 2: 'Date: YYYY-MM-DD' (the transaction date, e.g., Date: 2026-06-25)\n"
+                    "Line 3: 'Total Amount: 0.00' (the grand total amount, e.g., Total Amount: 1580.00)\n"
+                    "Do not include any conversational text, code blocks, or markdown headers."
+                )
             ])
             if response.text:
                 return response.text
