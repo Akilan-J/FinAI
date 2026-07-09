@@ -238,18 +238,27 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
                 if amount_match:
                     amount = float(amount_match.group(1))
                     
+                    merchant = "Store"
+                    merchant_match = re.search(r'(?:at|from|to)\s+([a-zA-Z0-9\s/:]+)', seg)
+                    if merchant_match:
+                        merchant = re.sub(r'yesterday|today|\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}', '', merchant_match.group(1), flags=re.IGNORECASE).strip()
+                    
                     category = "Other"
                     for cat in ["food", "rent", "travel", "coffee", "groceries", "utilities", "shopping", "entertainment"]:
                         if cat in seg_lower:
                             category = cat
                             break
                             
-                    merchant = "Store"
-                    merchant_match = re.search(r'(?:at|from|to)\s+([a-zA-Z0-9\s]+)', seg)
-                    if merchant_match:
-                        merchant = merchant_match.group(1).strip()
+                    # Parse dates for individual segment if specified
+                    date_str = date.today().isoformat()
+                    date_match = re.search(r'(\d{4}-\d{2}-\d{2})', seg)
+                    if date_match:
+                        date_str = date_match.group(1)
+                    elif "yesterday" in seg_lower:
+                        from datetime import timedelta
+                        date_str = (date.today() - timedelta(days=1)).isoformat()
                     
-                    result = await create_expense_tool(db, user_id, amount, category, merchant)
+                    result = await create_expense_tool(db, user_id, amount, category, merchant, date_str)
                     expenses_logged.append(result)
             
             if expenses_logged:
@@ -440,8 +449,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                     "role": "system",
                     "content": (
                         "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
-                        "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee and 200 on lunch'), "
-                        "you must generate separate parallel tool calls for each individual expense to record all of them. "
+                        "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee yesterday and 200 on lunch on 2026-07-05'), "
+                        "you must generate separate parallel tool calls for each individual expense, extracting their corresponding date_str if specified (otherwise defaulting to current date). "
                         "Use function calling tools when the user requests database information, logging, or budgets. "
                         "Format responses nicely in markdown."
                     )
@@ -540,8 +549,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
             tools=[list_expenses, list_budgets, get_analytics_summary, create_expense, create_budget],
             system_instruction=(
                 "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
-                "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee and 200 on lunch'), "
-                "you must generate separate parallel tool calls for each individual expense to record all of them. "
+                "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee yesterday and 200 on lunch on 2026-07-05'), "
+                "you must generate separate parallel tool calls for each individual expense, extracting their corresponding date_str if specified (otherwise defaulting to current date). "
                 "Use function calling tools when the user requests database information, logging, or budgets. "
                 "Format responses nicely in markdown."
             )
