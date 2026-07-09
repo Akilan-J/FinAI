@@ -54,6 +54,25 @@ export default function ChatPage() {
     scrollToBottom();
   }, [messages]);
 
+  // Load chat history from the last 7 days on component mount
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const response = await fetchApi("/chat/history");
+        if (response && response.success && Array.isArray(response.data)) {
+          const loadedMessages: Message[] = response.data.map((msg: any) => ({
+            role: msg.role === "model" ? "model" : "user",
+            content: msg.content,
+          }));
+          setMessages(loadedMessages);
+        }
+      } catch (err) {
+        console.error("Failed to load chat history", err);
+      }
+    };
+    loadHistory();
+  }, []);
+
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return;
 
@@ -71,7 +90,8 @@ export default function ChatPage() {
     try {
       const token = getAccessToken();
       
-      const response = await fetch("http://localhost:8000/api/v1/chat/stream", {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+      const response = await fetch(`${baseUrl}/chat/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
