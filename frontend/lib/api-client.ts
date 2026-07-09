@@ -35,6 +35,9 @@ async function handleRefresh(): Promise<string | null> {
       return token;
     } catch (err) {
       accessToken = null;
+      if (typeof document !== "undefined") {
+        document.cookie = "refresh_token=; path=/; max-age=0;";
+      }
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
         window.location.href = `/login?redirect=${encodeURIComponent(window.location.pathname)}`;
       }
