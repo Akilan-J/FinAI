@@ -5,6 +5,7 @@ import * as Icons from "lucide-react";
 import { useCategories } from "@/hooks/use-expenses";
 import { useBudgets, useBudgetMutations, Budget } from "@/hooks/use-budgets";
 import { CategoryIcon } from "@/components/expenses/ExpenseTable";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function BudgetsPage() {
   const { categories } = useCategories();
@@ -55,14 +56,25 @@ export default function BudgetsPage() {
     setIsModalOpen(true);
   };
 
-  const handleDeleteBudget = async (id: string) => {
-    if (confirm("Are you sure you want to delete this category budget?")) {
-      try {
-        await deleteBudget(id);
-        refetch();
-      } catch (err: any) {
-        alert(err.message || "Failed to delete budget");
-      }
+  // Confirm modal state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDeleteBudget = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const executeDeleteBudget = async () => {
+    if (!confirmDeleteId) return;
+    setDeleteLoading(true);
+    try {
+      await deleteBudget(confirmDeleteId);
+      refetch();
+    } catch (err: any) {
+      alert(err.message || "Failed to delete budget");
+    } finally {
+      setDeleteLoading(false);
+      setConfirmDeleteId(null);
     }
   };
 
@@ -414,6 +426,16 @@ export default function BudgetsPage() {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={confirmDeleteId !== null}
+        title="Delete Budget"
+        message="This budget limit will be permanently removed. This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={executeDeleteBudget}
+        onCancel={() => setConfirmDeleteId(null)}
+        loading={deleteLoading}
+      />
     </div>
   );
 }
