@@ -5,6 +5,7 @@ from datetime import datetime, date, timezone
 from decimal import Decimal
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 from app.models.expense import Expense
 from app.models.category import Category
 from app.models.budget import Budget
@@ -17,6 +18,7 @@ from app.models.income import Income
 async def list_expenses_tool(db: AsyncSession, user_id: uuid.UUID, limit: int = 10) -> str:
     stmt = (
         select(Expense)
+        .options(selectinload(Expense.category))
         .where(Expense.user_id == user_id)
         .order_by(Expense.date.desc(), Expense.created_at.desc())
         .limit(limit)
@@ -39,6 +41,7 @@ async def list_budgets_tool(db: AsyncSession, user_id: uuid.UUID, period: str = 
     
     stmt = (
         select(Budget)
+        .options(selectinload(Budget.category))
         .where(and_(Budget.user_id == user_id, Budget.period == period))
     )
     result = await db.execute(stmt)
