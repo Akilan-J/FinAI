@@ -8,6 +8,7 @@ import ExpenseFilters from "@/components/expenses/ExpenseFilters";
 import ExpenseFormDrawer from "@/components/expenses/ExpenseFormDrawer";
 import { useUploadReceipt, useReceiptStatus, Receipt } from "@/hooks/use-receipts";
 import OcrValidationDrawer from "@/components/expenses/OcrValidationDrawer";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function ExpensesPage() {
   const { categories } = useCategories();
@@ -90,31 +91,45 @@ export default function ExpensesPage() {
     setDrawerOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this expense?")) {
-      try {
-        await deleteExpense(id);
-        refetch();
-        setSelectedIds((prev) => prev.filter((item) => item !== id));
-      } catch (err: any) {
-        alert(err.message || "Failed to delete expense");
-      }
+  // Confirm modal state
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const handleDelete = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const executeDelete = async () => {
+    if (!confirmDeleteId) return;
+    setDeleteLoading(true);
+    try {
+      await deleteExpense(confirmDeleteId);
+      refetch();
+      setSelectedIds((prev) => prev.filter((item) => item !== confirmDeleteId));
+    } catch (err: any) {
+      alert(err.message || "Failed to delete expense");
+    } finally {
+      setDeleteLoading(false);
+      setConfirmDeleteId(null);
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (
-      confirm(
-        `Are you sure you want to delete ${selectedIds.length} selected transaction(s)?`
-      )
-    ) {
-      try {
-        await bulkDeleteExpenses(selectedIds);
-        refetch();
-        setSelectedIds([]);
-      } catch (err: any) {
-        alert(err.message || "Failed to bulk delete expenses");
-      }
+  const handleBulkDelete = () => {
+    setConfirmBulkDelete(true);
+  };
+
+  const executeBulkDelete = async () => {
+    setDeleteLoading(true);
+    try {
+      await bulkDeleteExpenses(selectedIds);
+      refetch();
+      setSelectedIds([]);
+    } catch (err: any) {
+      alert(err.message || "Failed to bulk delete expenses");
+    } finally {
+      setDeleteLoading(false);
+      setConfirmBulkDelete(false);
     }
   };
 
@@ -321,6 +336,26 @@ export default function ExpensesPage() {
         categories={categories}
         receipt={activeReceipt}
         onSuccess={refetch}
+      />
+
+      <ConfirmModal
+        open={confirmDeleteId !== null}
+        title="Delete Expense"
+        message="This expense entry will be permanently removed. This action cannot be undone."
+        confirmLabel="Delete"
+        onConfirm={executeDelete}
+        onCancel={() => setConfirmDeleteId(null)}
+        loading={deleteLoading}
+      />
+
+      <ConfirmModal
+        open={confirmBulkDelete}
+        title="Bulk Delete Expenses"
+        message={`Are you sure you want to delete ${selectedIds.length} selected transaction(s)? This action cannot be undone.`}
+        confirmLabel="Delete All"
+        onConfirm={executeBulkDelete}
+        onCancel={() => setConfirmBulkDelete(false)}
+        loading={deleteLoading}
       />
     </div>
   );
