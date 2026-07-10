@@ -114,7 +114,8 @@ async def create_expense_tool(
     amount: float,
     category_name: str,
     merchant: str,
-    date_str: str = None
+    date_str: str = None,
+    payment_method: str = None
 ) -> str:
     try:
         # Resolve category
@@ -149,13 +150,13 @@ async def create_expense_tool(
             category_id=category.id,
             amount=Decimal(str(amount)),
             merchant=merchant,
-            payment_method="other",
+            payment_method=(payment_method.lower() if payment_method else "other"),
             date=parsed_date,
             notes="Logged via AI Chat Assistant"
         )
         db.add(expense)
         await db.commit()
-        return f"Successfully logged expense: ₹{amount:.2f} at {merchant} under '{category.name}' on {parsed_date}."
+        return f"Successfully logged expense: ₹{amount:.2f} at {merchant} under '{category.name}' using {(payment_method or 'other').upper()} on {parsed_date}."
     except Exception as e:
         await db.rollback()
         return f"Failed to log expense: {str(e)}"
@@ -232,7 +233,8 @@ async def update_expense_tool(
     new_merchant: str = None,
     new_category_name: str = None,
     new_date_str: str = None,
-    new_notes: str = None
+    new_notes: str = None,
+    new_payment_method: str = None
 ) -> str:
     try:
         query = select(Expense).where(Expense.user_id == user_id)
@@ -312,6 +314,9 @@ async def update_expense_tool(
         if new_notes:
             expense_to_update.notes = new_notes
             updates.append("Notes updated")
+        if new_payment_method:
+            expense_to_update.payment_method = new_payment_method.lower()
+            updates.append(f"Payment Method to '{new_payment_method.upper()}'")
             
         if not updates:
             return f"No update parameters specified. Expense remains unchanged: {original_details}."
@@ -414,12 +419,18 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
             new_amount_match = re.search(r'(?:to|of|be)\s+(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', prompt_lower)
             new_amount = float(new_amount_match.group(1)) if new_amount_match else None
             
+            new_payment_method = None
+            for pm in ["cash", "card", "upi", "netbanking", "wallet"]:
+                if pm in prompt_lower:
+                    new_payment_method = pm
+                    break
+            
             search_merchant = None
             merchant_match = re.search(r'(?:for|at|from|to)\s+([a-zA-Z0-9\s/:]+)', prompt)
             if merchant_match:
                 search_merchant = re.sub(r'yesterday|today|\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}', '', merchant_match.group(1), flags=re.IGNORECASE).strip()
                 
-            result = await update_expense_tool(db, user_id, search_merchant=search_merchant, new_amount=new_amount)
+            result = await update_expense_tool(db, user_id, search_merchant=search_merchant, new_amount=new_amount, new_payment_method=new_payment_method)
             yield f"🤖 *Simulation Mode (No API Key)*:\n\n{result}"
             
         elif any(keyword in words for keyword in ["log", "add", "create", "new", "record"]):
@@ -444,6 +455,12 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
                             category = cat
                             break
                             
+                    payment_method = "other"
+                    for pm in ["cash", "card", "upi", "netbanking", "wallet"]:
+                        if pm in seg_lower:
+                            payment_method = pm
+                            break
+                            
                     # Parse dates for individual segment if specified
                     date_str = date.today().isoformat()
                     date_match = re.search(r'(\d{4}-\d{2}-\d{2})', seg)
@@ -453,7 +470,7 @@ async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
                         from datetime import timedelta
                         date_str = (date.today() - timedelta(days=1)).isoformat()
                     
-                    result = await create_expense_tool(db, user_id, amount, category, merchant, date_str)
+                    result = await create_expense_tool(db, user_id, amount, category, merchant, date_str, payment_method)
                     expenses_logged.append(result)
             
             if expenses_logged:
@@ -526,7 +543,7 @@ def get_analytics_summary(period: str = None) -> str:
     """
     return ""
 
-def create_expense(amount: float, category_name: str, merchant: str, date_str: str = None) -> str:
+def create_expense(amount: float, category_name: str, merchant: str, date_str: str = None, payment_method: str = None) -> str:
     """
     Log a new expense.
     
@@ -535,6 +552,7 @@ def create_expense(amount: float, category_name: str, merchant: str, date_str: s
         category_name: The category category (e.g., Food, Travel, Rent).
         merchant: The place or person paid.
         date_str: Date of expense in YYYY-MM-DD format. Defaults to today if None.
+        payment_method: Payment method used (e.g. Cash, Card, UPI, Netbanking, Wallet, Other).
     """
     return ""
 
@@ -548,7 +566,8 @@ def update_expense(
     new_merchant: str = None,
     new_category_name: str = None,
     new_date_str: str = None,
-    new_notes: str = None
+    new_notes: str = None,
+    new_payment_method: str = None
 ) -> str:
     """
     Modify or update details of an existing logged expense.
@@ -564,6 +583,7 @@ def update_expense(
         new_category_name: The new category name to assign.
         new_date_str: The new date to assign in YYYY-MM-DD.
         new_notes: The new notes description.
+        new_payment_method: The new payment method to assign.
     """
     return ""
 
@@ -663,7 +683,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                                 "amount": {"type": "number"},
                                 "category_name": {"type": "string"},
                                 "merchant": {"type": "string"},
-                                "date_str": {"type": "string", "description": "YYYY-MM-DD format"}
+                                "date_str": {"type": "string", "description": "YYYY-MM-DD format"},
+                                "payment_method": {"type": "string", "description": "Payment method used (e.g. Cash, Card, UPI, Netbanking, Wallet, Other)"}
                             },
                             "required": ["amount", "category_name", "merchant"]
                         }
@@ -702,7 +723,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                                 "new_merchant": {"type": "string", "description": "New merchant header to assign."},
                                 "new_category_name": {"type": "string", "description": "New category name to assign."},
                                 "new_date_str": {"type": "string", "description": "New date to assign in YYYY-MM-DD format."},
-                                "new_notes": {"type": "string", "description": "New notes description to assign."}
+                                "new_notes": {"type": "string", "description": "New notes description to assign."},
+                                "new_payment_method": {"type": "string", "description": "New payment method to assign (e.g. Cash, Card, UPI, Netbanking, Wallet, Other)."}
                             }
                         }
                     }
@@ -784,7 +806,7 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                         res_val = await get_analytics_summary_tool(db, user_id, args.get("period"))
                     elif name == "create_expense":
                         res_val = await create_expense_tool(
-                            db, user_id, float(args["amount"]), str(args["category_name"]), str(args["merchant"]), args.get("date_str")
+                            db, user_id, float(args["amount"]), str(args["category_name"]), str(args["merchant"]), args.get("date_str"), args.get("payment_method")
                         )
                     elif name == "create_budget":
                         res_val = await create_budget_tool(
@@ -811,7 +833,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                             new_merchant=args.get("new_merchant"),
                             new_category_name=args.get("new_category_name"),
                             new_date_str=args.get("new_date_str"),
-                            new_notes=args.get("new_notes")
+                            new_notes=args.get("new_notes"),
+                            new_payment_method=args.get("new_payment_method")
                         )
                     else:
                         res_val = f"Error: Tool {name} not found."
@@ -888,7 +911,7 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                     res_val = await get_analytics_summary_tool(db, user_id, args.get("period"))
                 elif name == "create_expense":
                     res_val = await create_expense_tool(
-                        db, user_id, float(args["amount"]), str(args["category_name"]), str(args["merchant"]), args.get("date_str")
+                        db, user_id, float(args["amount"]), str(args["category_name"]), str(args["merchant"]), args.get("date_str"), args.get("payment_method")
                     )
                 elif name == "create_budget":
                     res_val = await create_budget_tool(
@@ -915,7 +938,8 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                         new_merchant=args.get("new_merchant"),
                         new_category_name=args.get("new_category_name"),
                         new_date_str=args.get("new_date_str"),
-                        new_notes=args.get("new_notes")
+                        new_notes=args.get("new_notes"),
+                        new_payment_method=args.get("new_payment_method")
                     )
                 else:
                     res_val = f"Error: Tool {name} not found."
