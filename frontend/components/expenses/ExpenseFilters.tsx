@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { Category } from "@/hooks/use-expenses";
+import { dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
 
 interface ExpenseFiltersProps {
   categories: Category[];
@@ -39,6 +40,43 @@ export default function ExpenseFilters({
 }: ExpenseFiltersProps) {
   const hasActiveFilters =
     search || category || paymentMethod || from || to || sort !== "date:desc";
+
+  // Local state for text input values
+  const [localFrom, setLocalFrom] = useState("");
+  const [localTo, setLocalTo] = useState("");
+
+  // Sync with parent props when they are changed/cleared
+  useEffect(() => {
+    setLocalFrom(dbDateToInputDate(from));
+  }, [from]);
+
+  useEffect(() => {
+    setLocalTo(dbDateToInputDate(to));
+  }, [to]);
+
+  const handleFromTextChange = (val: string) => {
+    setLocalFrom(val);
+    if (!val.trim()) {
+      onFromChange("");
+      return;
+    }
+    const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (match) {
+      onFromChange(inputDateToDbDate(val));
+    }
+  };
+
+  const handleToTextChange = (val: string) => {
+    setLocalTo(val);
+    if (!val.trim()) {
+      onToChange("");
+      return;
+    }
+    const match = val.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (match) {
+      onToChange(inputDateToDbDate(val));
+    }
+  };
 
   return (
     <div className="bg-neutral-900/20 border border-neutral-800/60 p-5 rounded-2xl space-y-4">
@@ -109,20 +147,22 @@ export default function ExpenseFilters({
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="relative flex-1 sm:flex-none">
             <input
-              type="date"
-              value={from}
-              onChange={(e) => onFromChange(e.target.value)}
-              className="w-full bg-neutral-950/60 border border-neutral-800/80 focus:border-violet-500 rounded-xl px-3 py-2 text-xs text-neutral-300 outline-none transition cursor-pointer"
+              type="text"
+              value={localFrom}
+              onChange={(e) => handleFromTextChange(e.target.value)}
+              className="w-full bg-neutral-950/60 border border-neutral-800/80 focus:border-violet-500 rounded-xl px-3.5 py-2 text-xs text-neutral-100 placeholder-neutral-600 outline-none transition"
+              placeholder="DD/MM/YYYY"
               title="From Date"
             />
           </div>
           <span className="text-neutral-500 text-xs">to</span>
           <div className="relative flex-1 sm:flex-none">
             <input
-              type="date"
-              value={to}
-              onChange={(e) => onToChange(e.target.value)}
-              className="w-full bg-neutral-950/60 border border-neutral-800/80 focus:border-violet-500 rounded-xl px-3 py-2 text-xs text-neutral-300 outline-none transition cursor-pointer"
+              type="text"
+              value={localTo}
+              onChange={(e) => handleToTextChange(e.target.value)}
+              className="w-full bg-neutral-950/60 border border-neutral-800/80 focus:border-violet-500 rounded-xl px-3.5 py-2 text-xs text-neutral-100 placeholder-neutral-600 outline-none transition"
+              placeholder="DD/MM/YYYY"
               title="To Date"
             />
           </div>
