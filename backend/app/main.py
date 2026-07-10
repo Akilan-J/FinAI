@@ -16,6 +16,7 @@ from app.models.receipt import Receipt
 from app.models.expense import Expense
 from app.models.budget import Budget
 from app.models.income import Income
+from app.models.chat_message import ChatMessage
 
 
 @asynccontextmanager
