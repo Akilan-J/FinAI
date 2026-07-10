@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1 import auth, categories, expenses, budgets, income, analytics, receipts, chat
+from app.api.v1 import auth, categories, expenses, budgets, income, analytics, receipts, chat, goals, recurring_bills
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["Authentication"])
@@ -10,4 +10,6 @@ api_router.include_router(income.router, prefix="/income", tags=["Income"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["Analytics"])
 api_router.include_router(receipts.router, prefix="/receipts", tags=["Receipts"])
 api_router.include_router(chat.router, prefix="/chat", tags=["Chat Assistant"])
+api_router.include_router(goals.router, prefix="/goals", tags=["Goals Planner"])
+api_router.include_router(recurring_bills.router, prefix="/recurring-bills", tags=["Recurring Bills"])
 
