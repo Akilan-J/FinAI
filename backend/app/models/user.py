@@ -36,3 +36,6 @@ class User(Base):
     sessions: Mapped[list["UserSession"]] = relationship(
         "UserSession", back_populates="user", cascade="all, delete-orphan"
     )
+
+    goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    recurring_bills = relationship("RecurringBill", back_populates="user", cascade="all, delete-orphan")
