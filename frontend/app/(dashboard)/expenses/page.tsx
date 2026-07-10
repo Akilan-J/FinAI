@@ -9,6 +9,7 @@ import ExpenseFormDrawer from "@/components/expenses/ExpenseFormDrawer";
 import { useUploadReceipt, useReceiptStatus, Receipt } from "@/hooks/use-receipts";
 import OcrValidationDrawer from "@/components/expenses/OcrValidationDrawer";
 import ConfirmModal from "@/components/ConfirmModal";
+import { formatDateToDDMMYYYY } from "@/lib/utils";
 
 export default function ExpensesPage() {
   const { categories } = useCategories();
