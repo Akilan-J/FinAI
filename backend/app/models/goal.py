@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import Column, String, Numeric, Date, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-from app.db.base_class import Base
+from app.db.base import Base
 
 class Goal(Base):
     __tablename__ = "goals"
