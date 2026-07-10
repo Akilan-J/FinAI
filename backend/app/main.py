@@ -17,6 +17,8 @@ from app.models.expense import Expense
 from app.models.budget import Budget
 from app.models.income import Income
 from app.models.chat_message import ChatMessage
+from app.models.goal import Goal
+from app.models.recurring_bill import RecurringBill
 
 
 @asynccontextmanager
