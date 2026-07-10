@@ -12,6 +12,8 @@ from app.models.budget import Budget
 from app.models.expense import Expense
 from app.models.income import Income
 from app.models.receipt import Receipt
+from app.models.goal import Goal
+from app.models.recurring_bill import RecurringBill
 from app.services.chat_agent import (
     list_expenses_tool,
     create_expense_tool,
