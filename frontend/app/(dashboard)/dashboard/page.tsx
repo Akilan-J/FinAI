@@ -125,6 +125,87 @@ export default function DashboardPage() {
     };
   });
 
+  // Submit handlers for Goals
+  const handleCreateGoal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGoalName.trim() || !newGoalTarget || !newGoalDate) return;
+    try {
+      const parts = newGoalDate.split("/");
+      const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+      await createGoal({
+        name: newGoalName,
+        target_amount: parseFloat(newGoalTarget),
+        target_date: formattedDate,
+      });
+      setNewGoalName("");
+      setNewGoalTarget("");
+      setNewGoalDate("");
+      setShowAddGoal(false);
+      refetchGoals();
+    } catch (err) {
+      alert("Failed to create savings goal. Verify the date format DD/MM/YYYY.");
+    }
+  };
+
+  const handleUpdateGoalProgress = async (id: string, currentSaved: number) => {
+    if (!goalProgressAmount) return;
+    try {
+      const added = parseFloat(goalProgressAmount);
+      await updateGoal(id, {
+        current_amount: currentSaved + added,
+      });
+      setEditingGoalId(null);
+      setGoalProgressAmount("");
+      refetchGoals();
+    } catch (err) {
+      alert("Failed to update goal progress.");
+    }
+  };
+
+  const handleDeleteGoal = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this savings goal?")) return;
+    try {
+      await deleteGoal(id);
+      refetchGoals();
+    } catch (err) {
+      alert("Failed to delete savings goal.");
+    }
+  };
+
+  // Submit handlers for Recurring Bills
+  const handleCreateBill = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBillName.trim() || !newBillAmount || !newBillDueDate) return;
+    try {
+      const parts = newBillDueDate.split("/");
+      const formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+      await createBill({
+        name: newBillName,
+        amount: parseFloat(newBillAmount),
+        category: newBillCategory,
+        frequency: newBillFrequency,
+        next_due_date: formattedDate,
+      });
+      setNewBillName("");
+      setNewBillAmount("");
+      setNewBillDueDate("");
+      setShowAddBill(false);
+      refetchBills();
+    } catch (err) {
+      alert("Failed to create subscription bill. Verify the date format DD/MM/YYYY.");
+    }
+  };
+
+  const handleDeleteBill = async (id: string) => {
+    if (!confirm("Are you sure you want to remove this subscription recurring bill?")) return;
+    try {
+      await deleteBill(id);
+      refetchBills();
+    } catch (err) {
+      alert("Failed to remove recurring bill.");
+    }
+  };
+
   return (
     <div className="flex-1 flex flex-col space-y-6">
       {/* Top Welcome Title */}
@@ -373,6 +454,281 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Savings Goals & Recurring Subscriptions row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Savings Goals Planner */}
+            <div className="lg:col-span-2 bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <div>
+                  <h3 className="font-bold text-neutral-100">Savings Goals</h3>
+                  <p className="text-[10px] text-neutral-500 mt-0.5">
+                    Track savings targets and fund allocations for key plans
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddGoal(!showAddGoal)}
+                  className="flex items-center gap-1 text-xs font-bold text-violet-400 hover:text-violet-300 transition cursor-pointer"
+                >
+                  <Icons.Plus className="w-3.5 h-3.5" />
+                  Add Goal
+                </button>
+              </div>
+
+              {/* Add Goal Form Inline Overlay */}
+              {showAddGoal && (
+                <form onSubmit={handleCreateGoal} className="bg-neutral-950/60 border border-neutral-850 p-4 rounded-xl space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <input
+                      type="text"
+                      placeholder="Goal Name (e.g., Mac Studio)"
+                      value={newGoalName}
+                      onChange={(e) => setNewGoalName(e.target.value)}
+                      className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-xs text-neutral-100 outline-none"
+                      required
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Target Amount (₹)"
+                      value={newGoalTarget}
+                      onChange={(e) => setNewGoalTarget(e.target.value)}
+                      className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-xs text-neutral-100 outline-none"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Target Date (DD/MM/YYYY)"
+                      value={newGoalDate}
+                      onChange={(e) => setNewGoalDate(e.target.value)}
+                      className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-xs text-neutral-100 outline-none"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddGoal(false)}
+                      className="px-3 py-1 bg-neutral-900 border border-neutral-800 hover:bg-neutral-850 text-neutral-400 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-3 py-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-neutral-50 rounded-lg transition"
+                    >
+                      Save Goal
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {goals.length === 0 ? (
+                <div className="py-8 text-center text-xs text-neutral-500">
+                  No savings goals defined. Create one to start tracking.
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[22rem] overflow-y-auto pr-1">
+                  {goals.map((goal) => {
+                    const percent = Math.min(100, Math.max(0, (goal.current_amount / goal.target_amount) * 100));
+                    return (
+                      <div key={goal.id} className="bg-neutral-950/30 border border-neutral-900 p-4 rounded-xl space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <div>
+                            <span className="font-bold text-neutral-200">{goal.name}</span>
+                            <span className="text-[10px] text-neutral-500 ml-2">Target: {formatDateToDDMMYYYY(goal.target_date)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-neutral-300">
+                              ₹{Number(goal.current_amount).toLocaleString()} / ₹{Number(goal.target_amount).toLocaleString()}
+                            </span>
+                            <span className="font-bold text-violet-400">({percent.toFixed(0)}%)</span>
+                          </div>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full bg-neutral-900 h-2.5 rounded-full overflow-hidden border border-neutral-850">
+                          <div
+                            className="bg-gradient-to-r from-violet-600 to-indigo-600 h-full rounded-full transition-all duration-350"
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+
+                        {/* Inline progress addition */}
+                        <div className="flex items-center justify-between pt-1">
+                          {editingGoalId === goal.id ? (
+                            <div className="flex items-center gap-2 w-full max-w-[240px]">
+                              <input
+                                type="number"
+                                placeholder="Add Amount (₹)"
+                                value={goalProgressAmount}
+                                onChange={(e) => setGoalProgressAmount(e.target.value)}
+                                className="w-full bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-2 py-1 text-[10px] text-neutral-100 outline-none"
+                              />
+                              <button
+                                onClick={() => handleUpdateGoalProgress(goal.id, goal.current_amount)}
+                                className="px-2.5 py-1 bg-violet-600 hover:bg-violet-550 text-neutral-50 rounded-lg text-[9px] font-bold transition"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingGoalId(null)}
+                                className="text-neutral-500 hover:text-neutral-300 text-[10px] px-1"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingGoalId(goal.id);
+                                setGoalProgressAmount("");
+                              }}
+                              className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 hover:text-neutral-200 transition cursor-pointer"
+                            >
+                              <Icons.Coins className="w-3.5 h-3.5 text-violet-400" />
+                              Add Savings
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => handleDeleteGoal(goal.id)}
+                            className="text-neutral-600 hover:text-red-400 transition"
+                            title="Delete goal"
+                          >
+                            <Icons.Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Recurring Subscriptions & Bills */}
+            <div className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+              <div className="flex items-center justify-between border-b border-neutral-800 pb-3">
+                <div>
+                  <h3 className="font-bold text-neutral-100">Recurring Bills</h3>
+                  <p className="text-[10px] text-neutral-500 mt-0.5">
+                    Forecast upcoming active monthly subscriptions
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAddBill(!showAddBill)}
+                  className="flex items-center gap-1 text-xs font-bold text-violet-400 hover:text-violet-300 transition cursor-pointer"
+                >
+                  <Icons.Plus className="w-3.5 h-3.5" />
+                  Add Bill
+                </button>
+              </div>
+
+              {/* Add Bill Form Inline Overlay */}
+              {showAddBill && (
+                <form onSubmit={handleCreateBill} className="bg-neutral-950/60 border border-neutral-850 p-4 rounded-xl space-y-3 text-xs">
+                  <input
+                    type="text"
+                    placeholder="Subscription Name (Netflix)"
+                    value={newBillName}
+                    onChange={(e) => setNewBillName(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-neutral-100 outline-none"
+                    required
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="Amount (₹)"
+                      value={newBillAmount}
+                      onChange={(e) => setNewBillAmount(e.target.value)}
+                      className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-neutral-100 outline-none"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Due Date (DD/MM/YYYY)"
+                      value={newBillDueDate}
+                      onChange={(e) => setNewBillDueDate(e.target.value)}
+                      className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-neutral-100 outline-none"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddBill(false)}
+                      className="px-3 py-1 bg-neutral-900 border border-neutral-800 hover:bg-neutral-850 text-neutral-400 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-3 py-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-neutral-50 rounded-lg transition"
+                    >
+                      Save Bill
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {bills.length === 0 ? (
+                <div className="py-8 text-center text-xs text-neutral-500">
+                  No recurring bills found. Add subscriptions to forecast.
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-[22rem] overflow-y-auto pr-1">
+                  {bills.map((bill) => {
+                    const due = new Date(bill.next_due_date);
+                    const diffDays = Math.ceil((due.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    
+                    let badgeColor = "bg-neutral-900 text-neutral-400";
+                    let badgeText = `In ${diffDays} days`;
+                    if (diffDays <= 0) {
+                      badgeColor = "bg-rose-950/20 border border-rose-800/30 text-rose-400";
+                      badgeText = "Due Today";
+                    } else if (diffDays <= 3) {
+                      badgeColor = "bg-amber-950/20 border border-amber-800/30 text-amber-400";
+                      badgeText = `Due in ${diffDays}d`;
+                    }
+
+                    return (
+                      <div key={bill.id} className="bg-neutral-950/30 border border-neutral-900 p-3 rounded-xl flex items-center justify-between">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-bold text-neutral-200 text-xs">{bill.name}</span>
+                            <span className="text-[9px] uppercase tracking-wider font-semibold text-neutral-500 px-1.5 py-0.5 bg-neutral-900 rounded-full border border-neutral-800">
+                              {bill.category}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-neutral-500">
+                            Next due: {formatDateToDDMMYYYY(bill.next_due_date)} ({bill.frequency})
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <span className="block font-black text-xs text-neutral-300">₹{Number(bill.amount).toLocaleString()}</span>
+                            <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold mt-1 ${badgeColor}`}>
+                              {badgeText}
+                            </span>
+                          </div>
+
+                          <button
+                            onClick={() => handleDeleteBill(bill.id)}
+                            className="text-neutral-700 hover:text-red-400 transition"
+                            title="Remove recurring bill"
+                          >
+                            <Icons.Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
