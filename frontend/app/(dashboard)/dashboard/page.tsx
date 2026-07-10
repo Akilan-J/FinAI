@@ -24,6 +24,8 @@ import {
 import { useExpenses } from "@/hooks/use-expenses";
 import { CategoryIcon } from "@/components/expenses/ExpenseTable";
 import { formatDateToDDMMYYYY } from "@/lib/utils";
+import { useGoals, useGoalMutations } from "@/hooks/use-goals";
+import { useRecurringBills, useRecurringMutations } from "@/hooks/use-recurring";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -44,6 +46,31 @@ export default function DashboardPage() {
   const { distribution, loading: distLoading } = useCategoryDistribution(period);
   const { trends, loading: trendsLoading } = useMonthlyTrends(6);
   const { expenses, loading: expensesLoading } = useExpenses({ limit: 5 });
+
+  // Goals and Recurring Bills
+  const { goals, loading: goalsLoading, refetch: refetchGoals } = useGoals();
+  const { bills, loading: billsLoading, refetch: refetchBills } = useRecurringBills();
+
+  const { createGoal, updateGoal, deleteGoal } = useGoalMutations();
+  const { createBill, deleteBill } = useRecurringMutations();
+
+  // Dialog State: Goals Add Form
+  const [showAddGoal, setShowAddGoal] = useState(false);
+  const [newGoalName, setNewGoalName] = useState("");
+  const [newGoalTarget, setNewGoalTarget] = useState("");
+  const [newGoalDate, setNewGoalDate] = useState("");
+
+  // Dialog State: Goals Progress Update
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalProgressAmount, setGoalProgressAmount] = useState("");
+
+  // Dialog State: Bills Add Form
+  const [showAddBill, setShowAddBill] = useState(false);
+  const [newBillName, setNewBillName] = useState("");
+  const [newBillAmount, setNewBillAmount] = useState("");
+  const [newBillCategory, setNewBillCategory] = useState("Subscription");
+  const [newBillFrequency, setNewBillFrequency] = useState("monthly");
+  const [newBillDueDate, setNewBillDueDate] = useState("");
 
   const handlePrevMonth = () => {
     const [y, m] = period.split("-").map(Number);
@@ -76,7 +103,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isLoading = summaryLoading || distLoading || trendsLoading || expensesLoading;
+  const isLoading = summaryLoading || distLoading || trendsLoading || expensesLoading || goalsLoading || billsLoading;
 
   // Prepare chart format
   const chartData = distribution.map((item) => ({
