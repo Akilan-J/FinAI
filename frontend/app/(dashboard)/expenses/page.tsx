@@ -200,6 +200,36 @@ export default function ExpensesPage() {
     }, 2000);
   };
 
+  // CSV Exporter Handler
+  const handleExportCSV = () => {
+    if (expenses.length === 0) {
+      alert("No expenses found to export matching current filter criteria.");
+      return;
+    }
+    
+    const headers = ["Date", "Merchant", "Category", "Amount (INR)", "Payment Method", "Notes"];
+    
+    const rows = expenses.map(exp => [
+      formatDateToDDMMYYYY(exp.date),
+      `"${exp.merchant.replace(/"/g, '""')}"`,
+      exp.category?.name || "Uncategorized",
+      exp.amount.toFixed(2),
+      exp.payment_method ? exp.payment_method.toUpperCase() : "N/A",
+      exp.notes ? `"${exp.notes.replace(/"/g, '""')}"` : ""
+    ]);
+    
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `FinAI_Expense_Statement_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Pagination helper
   const totalPages = Math.ceil(meta.total / limit);
 
@@ -223,6 +253,15 @@ export default function ExpensesPage() {
             accept="image/*,application/pdf"
             className="hidden"
           />
+          <button
+            onClick={handleExportCSV}
+            disabled={expenses.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl border border-neutral-800 hover:bg-neutral-900 disabled:opacity-50 text-sm font-semibold text-neutral-300 transition cursor-pointer"
+            title="Export current selection to CSV"
+          >
+            <Icons.Download className="w-4 h-4 text-emerald-400" />
+            Export Statement
+          </button>
           <button
             onClick={handleScanReceiptClick}
             disabled={uploadLoading || ocrStatusText !== null}
