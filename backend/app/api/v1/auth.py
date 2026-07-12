@@ -230,3 +230,119 @@ async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depen
 @router.get("/me", response_model=ResponseEnvelope[UserResponse])
 async def get_me(current_user: User = Depends(get_current_user)):
     return ResponseEnvelope(data=UserResponse.model_validate(current_user))
+
+
+from pydantic import BaseModel
+
+class ProfileUpdatePayload(BaseModel):
+    full_name: str | None = None
+    currency: str | None = None
+
+
+@router.patch("/me", response_model=ResponseEnvelope[UserResponse])
+async def update_profile(
+    payload: ProfileUpdatePayload,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if payload.full_name is not None:
+        current_user.full_name = payload.full_name
+    if payload.currency is not None:
+        current_user.currency = payload.currency
+    await db.commit()
+    await db.refresh(current_user)
+    return ResponseEnvelope(data=UserResponse.model_validate(current_user))
+
+
+@router.post("/me/reset-data", response_model=ResponseEnvelope[dict])
+async def reset_user_data(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.expense import Expense
+    from app.models.income import Income
+    from app.models.budget import Budget
+    from app.models.goal import Goal
+    from app.models.recurring_bill import RecurringBill
+    from sqlalchemy import delete
+    
+    await db.execute(delete(Expense).where(Expense.user_id == current_user.id))
+    await db.execute(delete(Income).where(Income.user_id == current_user.id))
+    await db.execute(delete(Budget).where(Budget.user_id == current_user.id))
+    await db.execute(delete(Goal).where(Goal.user_id == current_user.id))
+    await db.execute(delete(RecurringBill).where(RecurringBill.user_id == current_user.id))
+    await db.commit()
+    return ResponseEnvelope(data={"message": "All financial records have been reset successfully."})
+
+
+@router.get("/me/backup", response_model=ResponseEnvelope[dict])
+async def backup_user_data(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    from app.models.expense import Expense
+    from app.models.income import Income
+    from app.models.budget import Budget
+    from app.models.goal import Goal
+    from app.models.recurring_bill import RecurringBill
+    
+    expenses_res = await db.execute(select(Expense).where(Expense.user_id == current_user.id))
+    incomes_res = await db.execute(select(Income).where(Income.user_id == current_user.id))
+    budgets_res = await db.execute(select(Budget).where(Budget.user_id == current_user.id))
+    goals_res = await db.execute(select(Goal).where(Goal.user_id == current_user.id))
+    bills_res = await db.execute(select(RecurringBill).where(RecurringBill.user_id == current_user.id))
+    
+    expenses = expenses_res.scalars().all()
+    incomes = incomes_res.scalars().all()
+    budgets = budgets_res.scalars().all()
+    goals = goals_res.scalars().all()
+    bills = bills_res.scalars().all()
+    
+    backup = {
+        "user": {
+            "email": current_user.email,
+            "full_name": current_user.full_name,
+            "currency": current_user.currency,
+        },
+        "expenses": [
+            {
+                "merchant": exp.merchant,
+                "amount": float(exp.amount),
+                "date": exp.date.isoformat(),
+                "payment_method": exp.payment_method,
+                "notes": exp.notes,
+            } for exp in expenses
+        ],
+        "incomes": [
+            {
+                "source": inc.source,
+                "amount": float(inc.amount),
+                "date": inc.date.isoformat(),
+                "notes": inc.notes,
+            } for inc in incomes
+        ],
+        "budgets": [
+            {
+                "amount_limit": float(b.amount_limit),
+                "period": b.period,
+            } for b in budgets
+        ],
+        "goals": [
+            {
+                "name": g.name,
+                "target_amount": float(g.target_amount),
+                "current_amount": float(g.current_amount),
+                "target_date": g.target_date.isoformat(),
+            } for g in goals
+        ],
+        "recurring_bills": [
+            {
+                "name": rb.name,
+                "amount": float(rb.amount),
+                "category": rb.category,
+                "frequency": rb.frequency,
+                "next_due_date": rb.next_due_date.isoformat(),
+            } for rb in bills
+        ]
+    }
+    return ResponseEnvelope(data=backup)
