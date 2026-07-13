@@ -59,7 +59,7 @@ export function useLoanMutations() {
     try {
       const response = await fetchApi("/loans", {
         method: "POST",
-        body: JSON.stringify(data),
+        json: data,
       });
       return response.data;
     } catch (err: any) {
@@ -86,7 +86,7 @@ export function useLoanMutations() {
     try {
       const response = await fetchApi(`/loans/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(data),
+        json: data,
       });
       return response.data;
     } catch (err: any) {
