@@ -55,7 +55,7 @@ export function useGoalMutations() {
     try {
       const response = await fetchApi("/goals", {
         method: "POST",
-        body: JSON.stringify(data),
+        json: data,
       });
       return response.data;
     } catch (err: any) {
@@ -80,7 +80,7 @@ export function useGoalMutations() {
     try {
       const response = await fetchApi(`/goals/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(data),
+        json: data,
       });
       return response.data;
     } catch (err: any) {
