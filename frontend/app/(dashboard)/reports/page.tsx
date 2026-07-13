@@ -251,7 +251,7 @@ export default function ReportsPage() {
                           <span className="text-neutral-500">({item.percentage.toFixed(1)}%)</span>
                         </div>
                       </div>
-                      <div className="w-full bg-neutral-950 h-2 rounded-full overflow-hidden border border-neutral-850 print:bg-neutral-200">
+                      <div className="w-full bg-neutral-900/60 h-3 rounded-full overflow-hidden print:bg-neutral-200">
                         <div
                           className="h-full rounded-full print:bg-black"
                           style={{
