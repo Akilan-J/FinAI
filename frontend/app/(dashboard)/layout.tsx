@@ -13,6 +13,7 @@ const NAV_ITEMS = [
   { name: "Income", href: "/income", icon: "DollarSign" },
   { name: "Reports", href: "/reports", icon: "FileText" },
   { name: "Chat", href: "/chat", icon: "MessageSquareCode" },
+  { name: "Loans Tracker", href: "/loans", icon: "Users" },
   { name: "Settings", href: "/settings", icon: "Settings" },
 ];
 
