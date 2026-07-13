@@ -551,7 +551,7 @@ export default function DashboardPage() {
                         </div>
 
                         {/* Progress bar */}
-                        <div className="w-full bg-neutral-900 h-2.5 rounded-full overflow-hidden border border-neutral-850">
+                        <div className="w-full bg-neutral-900/60 h-3 rounded-full overflow-hidden">
                           <div
                             className="bg-gradient-to-r from-violet-600 to-indigo-600 h-full rounded-full transition-all duration-350"
                             style={{ width: `${percent}%` }}
