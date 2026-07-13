@@ -216,6 +216,8 @@ export default function DashboardPage() {
     } catch (err) {
       alert("Failed to remove recurring bill.");
     }
+  };
+
   const generateInsights = () => {
     if (!summary) return [];
     const list: { text: string; icon: string; color: string }[] = [];
