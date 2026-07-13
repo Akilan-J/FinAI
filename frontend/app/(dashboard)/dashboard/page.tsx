@@ -26,6 +26,7 @@ import { CategoryIcon } from "@/components/expenses/ExpenseTable";
 import { formatDateToDDMMYYYY } from "@/lib/utils";
 import { useGoals, useGoalMutations } from "@/hooks/use-goals";
 import { useRecurringBills, useRecurringMutations } from "@/hooks/use-recurring";
+import { useBudgets } from "@/hooks/use-budgets";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -46,6 +47,17 @@ export default function DashboardPage() {
   const { distribution, loading: distLoading } = useCategoryDistribution(period);
   const { trends, loading: trendsLoading } = useMonthlyTrends(6);
   const { expenses, loading: expensesLoading } = useExpenses({ limit: 5 });
+
+  // Budgets list
+  const { budgets, loading: budgetsLoading } = useBudgets(period);
+  const [budgetThreshold, setBudgetThreshold] = useState(90);
+
+  useEffect(() => {
+    const storedThreshold = localStorage.getItem("budget_alert_threshold");
+    if (storedThreshold) {
+      setBudgetThreshold(Number(storedThreshold));
+    }
+  }, []);
 
   // Goals and Recurring Bills
   const { goals, loading: goalsLoading, refetch: refetchGoals } = useGoals();
@@ -103,7 +115,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isLoading = summaryLoading || distLoading || trendsLoading || expensesLoading || goalsLoading || billsLoading;
+  const isLoading = summaryLoading || distLoading || trendsLoading || expensesLoading || goalsLoading || billsLoading || budgetsLoading;
 
   // Prepare chart format
   const chartData = distribution.map((item) => ({
@@ -351,6 +363,28 @@ export default function DashboardPage() {
               >
                 Manage
               </Link>
+            </div>
+          )}
+
+          {/* Dynamic Budget Alert Warning threshold banner */}
+          {budgets && budgets.some(b => b.progress.percentage_used >= budgetThreshold && b.progress.percentage_used < 100) && (
+            <div className="flex flex-col gap-2.5 p-4 bg-orange-950/20 border border-orange-800/30 rounded-2xl text-orange-400 text-sm">
+              <div className="flex items-center gap-3">
+                <Icons.AlertOctagon className="w-5 h-5 flex-shrink-0" />
+                <div>
+                  <span className="font-bold">Budget Warning!</span> The following categories have exceeded your custom <span className="font-bold">{budgetThreshold}% warning limit</span>:
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 pl-8">
+                {budgets
+                  .filter(b => b.progress.percentage_used >= budgetThreshold && b.progress.percentage_used < 100)
+                  .map(b => (
+                    <div key={b.id} className="text-xs text-orange-300/90 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                      <span>{b.category?.name || "Uncategorized"}: <strong>{b.progress.percentage_used.toFixed(0)}% used</strong> (₹{Math.round(b.spent)} / ₹{Math.round(b.amount_limit)})</span>
+                    </div>
+                  ))}
+              </div>
             </div>
           )}
 
