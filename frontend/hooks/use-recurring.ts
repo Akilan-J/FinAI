@@ -57,7 +57,7 @@ export function useRecurringMutations() {
     try {
       const response = await fetchApi("/recurring-bills", {
         method: "POST",
-        body: JSON.stringify(data),
+        json: data,
       });
       return response.data;
     } catch (err: any) {
@@ -83,7 +83,7 @@ export function useRecurringMutations() {
     try {
       const response = await fetchApi(`/recurring-bills/${id}`, {
         method: "PATCH",
-        body: JSON.stringify(data),
+        json: data,
       });
       return response.data;
     } catch (err: any) {
