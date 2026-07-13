@@ -24,6 +24,7 @@ from app.models.income import Income
 from app.models.chat_message import ChatMessage
 from app.models.goal import Goal
 from app.models.recurring_bill import RecurringBill
+from app.models.loan import Loan
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

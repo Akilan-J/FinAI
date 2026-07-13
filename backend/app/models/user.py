@@ -39,3 +39,4 @@ class User(Base):
 
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     recurring_bills = relationship("RecurringBill", back_populates="user", cascade="all, delete-orphan")
+    loans = relationship("Loan", back_populates="user", cascade="all, delete-orphan")
