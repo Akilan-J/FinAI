@@ -216,6 +216,57 @@ export default function DashboardPage() {
     } catch (err) {
       alert("Failed to remove recurring bill.");
     }
+  const generateInsights = () => {
+    if (!summary) return [];
+    const list: { text: string; icon: string; color: string }[] = [];
+
+    // 1. Savings rate check
+    if (summary.savings_rate >= 20) {
+      list.push({
+        text: `Great job! Your savings rate of ${summary.savings_rate.toFixed(1)}% exceeds the standard 20% healthy threshold. Consider allocating some of these funds to your active Savings Goals.`,
+        icon: "TrendingUp",
+        color: "text-emerald-400 bg-emerald-500/10",
+      });
+    } else if (summary.savings_rate > 0 && summary.savings_rate < 20) {
+      list.push({
+        text: `Your savings rate is currently at ${summary.savings_rate.toFixed(1)}%. Try setting budget limits on non-essential categories to reach the target 20% savings threshold.`,
+        icon: "Percent",
+        color: "text-indigo-400 bg-indigo-500/10",
+      });
+    } else if (summary.savings_rate <= 0) {
+      list.push({
+        text: `Warning: You have a net deficit this period (savings rate: ${summary.savings_rate.toFixed(1)}%). Your outflows exceed your income inflow. Review category limits immediately.`,
+        icon: "AlertOctagon",
+        color: "text-rose-400 bg-rose-500/10",
+      });
+    }
+
+    // 2. Budget counts check
+    if (summary.over_budget_count > 0) {
+      list.push({
+        text: `You have exceeded budgets in ${summary.over_budget_count} category folders. Keep threshold notifications active in Settings to get warnings before you go over budget.`,
+        icon: "AlertTriangle",
+        color: "text-orange-400 bg-orange-500/10",
+      });
+    } else if (summary.active_budgets_count === 0) {
+      list.push({
+        text: "You don't have any active budgets set for this month. Creating budget folders helps regulate spending and prevents surprise outflows.",
+        icon: "FolderPlus",
+        color: "text-neutral-400 bg-neutral-900",
+      });
+    }
+
+    // 3. Top category check
+    if (distribution && distribution.length > 0) {
+      const topCat = distribution[0];
+      list.push({
+        text: `Your highest spending category this month is '${topCat.category_name}', which represents ${topCat.percentage.toFixed(1)}% of your total outflows. Consider setting a target limit here.`,
+        icon: "CreditCard",
+        color: "text-violet-400 bg-violet-500/10",
+      });
+    }
+
+    return list;
   };
 
   return (
@@ -384,6 +435,31 @@ export default function DashboardPage() {
                       <span>{b.category?.name || "Uncategorized"}: <strong>{b.progress.percentage_used.toFixed(0)}% used</strong> (₹{Math.round(b.spent)} / ₹{Math.round(b.amount_limit)})</span>
                     </div>
                   ))}
+              </div>
+            </div>
+          )}
+
+          {/* AI Financial Insights Dashboard widget */}
+          {summary && (
+            <div className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl space-y-4">
+              <h3 className="text-sm font-black text-neutral-100 flex items-center gap-2">
+                <Icons.Sparkles className="w-4 h-4 text-violet-400 animate-pulse" />
+                FinAI Smart Insights
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {generateInsights().map((insight, idx) => {
+                  const Icon = (Icons as any)[insight.icon] || Icons.Info;
+                  return (
+                    <div key={idx} className="flex gap-3 p-4 bg-neutral-950/40 border border-neutral-900 rounded-xl">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${insight.color}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <p className="text-xs text-neutral-300 leading-relaxed">
+                        {insight.text}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
