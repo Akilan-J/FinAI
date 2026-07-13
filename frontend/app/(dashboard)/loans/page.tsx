@@ -325,7 +325,7 @@ export default function LoansPage() {
                     </span>
                   </div>
 
-                  <div className="w-full bg-neutral-950 h-2 rounded-full overflow-hidden border border-neutral-850">
+                  <div className="w-full bg-neutral-900/60 h-3 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
                         loan.type === "lent" ? "bg-emerald-500" : "bg-rose-500"
