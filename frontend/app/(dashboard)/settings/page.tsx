@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { useAuth } from "@/stores/auth-store";
 import { fetchApi } from "@/lib/api-client";
+import { useCategories } from "@/hooks/use-expenses";
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
@@ -21,6 +22,35 @@ export default function SettingsPage() {
   const [backingUp, setBackingUp] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Category Customizer states
+  const { categories, refetch: refetchCategories } = useCategories();
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [newCategoryIcon, setNewCategoryIcon] = useState("Tag");
+  const [newCategoryColor, setNewCategoryColor] = useState("#8B5CF6");
+
+  const handleCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setSuccessMsg("");
+    setErrorMsg("");
+    try {
+      await fetchApi("/categories", {
+        method: "POST",
+        json: {
+          name: newCategoryName,
+          icon: newCategoryIcon,
+          color: newCategoryColor,
+        },
+      });
+      setNewCategoryName("");
+      refetchCategories();
+      setSuccessMsg("Category created successfully!");
+      setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to create category.");
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -211,6 +241,110 @@ export default function SettingsPage() {
               </button>
             </div>
           </form>
+
+          {/* Visual Category Customizer */}
+          <div className="bg-neutral-900/10 border border-neutral-800/60 p-6 rounded-2xl space-y-6">
+            <h3 className="text-sm font-black text-neutral-100 border-b border-neutral-850 pb-2 flex items-center gap-2">
+              <Icons.FolderPlus className="w-4 h-4 text-violet-400" />
+              Category Customizer
+            </h3>
+
+            {/* Custom Category Form */}
+            <form onSubmit={handleCreateCategory} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Category Name */}
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                    Category Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Subscriptions"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-2 text-xs text-neutral-200 outline-none"
+                    required
+                  />
+                </div>
+
+                {/* Icon Selection */}
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                    Icon Symbol
+                  </label>
+                  <select
+                    value={newCategoryIcon}
+                    onChange={(e) => setNewCategoryIcon(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-2 text-xs text-neutral-200 outline-none"
+                  >
+                    <option value="Tag">Tag (Default)</option>
+                    <option value="Coffee">Coffee (Food/Cafes)</option>
+                    <option value="ShoppingBag">ShoppingBag (Retail)</option>
+                    <option value="Car">Car (Transport)</option>
+                    <option value="Home">Home (Rent/Utilities)</option>
+                    <option value="Film">Film (Entertainment)</option>
+                    <option value="Gift">Gift (Presents)</option>
+                    <option value="Briefcase">Briefcase (Work/Business)</option>
+                  </select>
+                </div>
+
+                {/* Color Palette */}
+                <div className="flex flex-col space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">
+                    Color Accent
+                  </label>
+                  <select
+                    value={newCategoryColor}
+                    onChange={(e) => setNewCategoryColor(e.target.value)}
+                    className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-2 text-xs text-neutral-200 outline-none"
+                  >
+                    <option value="#8B5CF6">Purple Accent</option>
+                    <option value="#EC4899">Pink Accent</option>
+                    <option value="#3B82F6">Blue Accent</option>
+                    <option value="#10B981">Green Accent</option>
+                    <option value="#F59E0B">Yellow Accent</option>
+                    <option value="#EF4444">Red Accent</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-xs font-semibold text-neutral-50 flex items-center gap-1.5 cursor-pointer shadow-lg shadow-violet-500/10"
+                >
+                  <Icons.Plus className="w-3.5 h-3.5" />
+                  Add Category
+                </button>
+              </div>
+            </form>
+
+            {/* List Active Custom Categories */}
+            <div className="space-y-3">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-500 block">
+                Active Category List
+              </label>
+              <div className="flex flex-wrap gap-2 max-h-[140px] overflow-y-auto pr-1">
+                {categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-neutral-900/50 border border-neutral-850 rounded-xl text-xs text-neutral-200 font-semibold"
+                  >
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: cat.color }}
+                    />
+                    <span>{cat.name}</span>
+                    {cat.is_default && (
+                      <span className="text-[9px] text-neutral-500 uppercase tracking-widest font-normal">
+                        (Default)
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Right Side: Data Backup & Destructive Reset Panels */}
