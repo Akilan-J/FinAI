@@ -11,6 +11,8 @@ from app.models.category import Category
 from app.models.expense import Expense
 from app.models.income import Income
 from app.models.user import User
+from app.models.loan import Loan
+from app.models.goal import Goal
 from app.schemas.auth import ResponseEnvelope
 from app.schemas.analytics import (
     AnalyticsSummaryResponse,
@@ -240,3 +242,173 @@ async def get_monthly_trends(
         )
 
     return ResponseEnvelope(data=trends)
+
+
+@router.get("/challenges")
+async def get_challenges_and_badges(
+    period: str = Query(..., min_length=7, max_length=7),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    start_date, end_date = get_month_range(period)
+
+    # 1. Total spent & income in this period
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+        Expense.user_id == current_user.id,
+        Expense.date >= start_date,
+        Expense.date <= end_date,
+    )
+    spent_res = await db.execute(spent_stmt)
+    total_spent = spent_res.scalar() or Decimal("0.00")
+
+    income_stmt = select(func.coalesce(func.sum(Income.amount), 0)).where(
+        Income.user_id == current_user.id,
+        Income.date >= start_date,
+        Income.date <= end_date,
+    )
+    income_res = await db.execute(income_stmt)
+    total_income = income_res.scalar() or Decimal("0.00")
+
+    net_savings = total_income - total_spent
+    savings_rate = 0.0
+    if total_income > 0:
+        savings_rate = float(net_savings / total_income) * 100
+
+    # 2. Check budgets
+    budgets_stmt = select(Budget).where(
+        Budget.user_id == current_user.id,
+        Budget.period == period,
+    )
+    budgets_res = await db.execute(budgets_stmt)
+    user_budgets = budgets_res.scalars().all()
+    active_budgets_count = len(user_budgets)
+
+    over_budget_count = 0
+    for b in user_budgets:
+        exp_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+            Expense.user_id == current_user.id,
+            Expense.category_id == b.category_id,
+            Expense.date >= start_date,
+            Expense.date <= end_date,
+        )
+        exp_res = await db.execute(exp_stmt)
+        cat_spent = exp_res.scalar() or Decimal("0.00")
+        if cat_spent > b.amount_limit:
+            over_budget_count += 1
+
+    # 3. Check for Settled Loans
+    loans_stmt = select(func.count(Loan.id)).where(
+        Loan.user_id == current_user.id,
+        Loan.status == "settled"
+    )
+    loans_res = await db.execute(loans_stmt)
+    settled_loans_count = loans_res.scalar() or 0
+
+    # 4. Check for active Goals count
+    goals_stmt = select(func.count(Goal.id)).where(
+        Goal.user_id == current_user.id
+    )
+    goals_res = await db.execute(goals_stmt)
+    goals_count = goals_res.scalar() or 0
+
+    # 5. Check "No-Spend Weekend" status
+    all_expenses_stmt = select(Expense.date).where(
+        Expense.user_id == current_user.id,
+        Expense.date >= start_date,
+        Expense.date <= end_date,
+    )
+    all_expenses_res = await db.execute(all_expenses_stmt)
+    expense_dates = all_expenses_res.scalars().all()
+    
+    weekend_expense_days = {d for d in expense_dates if d.weekday() in (5, 6)}
+    
+    import datetime
+    current = start_date
+    weekends_list = []
+    while current <= end_date:
+        if current.weekday() in (5, 6):
+            weekends_list.append(current)
+        current += datetime.timedelta(days=1)
+        
+    unspent_weekend_days = [d for d in weekends_list if d not in weekend_expense_days]
+    no_spend_weekend_unlocked = len(unspent_weekend_days) >= 2
+
+    challenges = [
+        {
+            "id": "no_spend_weekend",
+            "title": "No-Spend Weekend",
+            "description": "Have at least 2 weekend days (Sat/Sun) this month with ₹0 expenses.",
+            "target": "2 days",
+            "current": f"{len(unspent_weekend_days)} days",
+            "status": "completed" if no_spend_weekend_unlocked else "in_progress",
+            "badge_reward": "Thrifty Weekend Warrior",
+        },
+        {
+            "id": "savings_streak",
+            "title": "Savings Supercharger",
+            "description": "Achieve a savings rate of 20% or more of your total income this period.",
+            "target": "20.0%",
+            "current": f"{savings_rate:.1f}%",
+            "status": "completed" if savings_rate >= 20 else "in_progress",
+            "badge_reward": "Savings Champion",
+        },
+        {
+            "id": "budget_master",
+            "title": "Budget Sentinel",
+            "description": "Keep spending within active limits for all categories this period.",
+            "target": "0 overages",
+            "current": f"{over_budget_count} overages",
+            "status": "completed" if active_budgets_count > 0 and over_budget_count == 0 else "in_progress",
+            "badge_reward": "Budget Master",
+        },
+        {
+            "id": "debt_solver",
+            "title": "Debt Cleared",
+            "description": "Settle at least one friend lend or loan record in full.",
+            "target": "1 settled",
+            "current": f"{settled_loans_count} settled",
+            "status": "completed" if settled_loans_count >= 1 else "in_progress",
+            "badge_reward": "Debt Liberator",
+        }
+    ]
+
+    badges = [
+        {
+            "id": "savings_champ",
+            "title": "Savings Champion",
+            "description": "Savings rate >= 20% achieved.",
+            "unlocked": savings_rate >= 20,
+            "icon": "Award",
+            "color": "violet",
+        },
+        {
+            "id": "debt_liberator",
+            "title": "Debt Liberator",
+            "description": "Settled at least 1 friend debt ledger.",
+            "unlocked": settled_loans_count >= 1,
+            "icon": "ShieldCheck",
+            "color": "emerald",
+        },
+        {
+            "id": "budget_sentinel",
+            "title": "Budget Sentinel",
+            "description": "Maintained 0 over-budget folders.",
+            "unlocked": active_budgets_count > 0 and over_budget_count == 0,
+            "icon": "CheckCircle",
+            "color": "indigo",
+        },
+        {
+            "id": "goal_pioneer",
+            "title": "Goal Pioneer",
+            "description": "Created at least 2 active Savings Goals.",
+            "unlocked": goals_count >= 2,
+            "icon": "TrendingUp",
+            "color": "amber",
+        }
+    ]
+
+    return ResponseEnvelope(data={
+        "challenges": challenges,
+        "badges": badges,
+    })
+
