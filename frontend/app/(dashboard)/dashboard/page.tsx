@@ -27,6 +27,7 @@ import { formatDateToDDMMYYYY } from "@/lib/utils";
 import { useGoals, useGoalMutations } from "@/hooks/use-goals";
 import { useRecurringBills, useRecurringMutations } from "@/hooks/use-recurring";
 import { useBudgets } from "@/hooks/use-budgets";
+import { useChallenges } from "@/hooks/use-challenges";
 
 export default function DashboardPage() {
   const [mounted, setMounted] = useState(false);
@@ -62,6 +63,9 @@ export default function DashboardPage() {
   // Goals and Recurring Bills
   const { goals, loading: goalsLoading, refetch: refetchGoals } = useGoals();
   const { bills, loading: billsLoading, refetch: refetchBills } = useRecurringBills();
+
+  // Challenges and achievement badges
+  const { data: challengesData, loading: challengesLoading } = useChallenges(period);
 
   const { createGoal, updateGoal, deleteGoal } = useGoalMutations();
   const { createBill, deleteBill } = useRecurringMutations();
@@ -115,7 +119,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isLoading = summaryLoading || distLoading || trendsLoading || expensesLoading || goalsLoading || billsLoading || budgetsLoading;
+  const isLoading = summaryLoading || distLoading || trendsLoading || expensesLoading || goalsLoading || billsLoading || budgetsLoading || challengesLoading;
 
   // Prepare chart format
   const chartData = distribution.map((item) => ({
@@ -845,6 +849,111 @@ export default function DashboardPage() {
               )}
             </div>
           </div>
+
+          {/* Gamified Challenges & Badges Section */}
+          {challengesData && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Part: 2/3 wide grid of challenges */}
+              <div className="lg:col-span-2 bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+                <div className="border-b border-neutral-800 pb-3">
+                  <h3 className="font-bold text-neutral-100 flex items-center gap-1.5">
+                    <Icons.Zap className="w-4 h-4 text-violet-400" />
+                    Monthly Financial Challenges
+                  </h3>
+                  <p className="text-[10px] text-neutral-500 mt-0.5">
+                    Hit targets to prove your wealth management skills and unlock achievements
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {challengesData.challenges.map((c) => (
+                    <div key={c.id} className="bg-neutral-950/40 border border-neutral-900 p-4 rounded-xl flex flex-col justify-between space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-neutral-200 text-xs">{c.title}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider ${
+                            c.status === "completed"
+                              ? "bg-emerald-950/20 border border-emerald-800/30 text-emerald-400"
+                              : "bg-neutral-900 border border-neutral-800 text-neutral-400"
+                          }`}>
+                            {c.status === "completed" ? "Completed" : "In Progress"}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-neutral-400 mt-1 leading-relaxed">
+                          {c.description}
+                        </p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px]">
+                          <span className="text-neutral-500">Current: <strong>{c.current}</strong></span>
+                          <span className="text-neutral-500">Target: <strong>{c.target}</strong></span>
+                        </div>
+                        <div className="w-full bg-neutral-900 h-1.5 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${
+                            c.status === "completed" ? "bg-emerald-500" : "bg-violet-500"
+                          }`} style={{ width: c.status === "completed" ? "100%" : "40%" }} />
+                        </div>
+                      </div>
+
+                      <div className="text-[9px] text-neutral-500 flex items-center gap-1 border-t border-neutral-900/50 pt-2 mt-1">
+                        <Icons.Award className="w-3 h-3 text-violet-400" />
+                        <span>Reward: {c.badge_reward} Badge</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Part: 1/3 wide grid of badges */}
+              <div className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4">
+                <div className="border-b border-neutral-800 pb-3">
+                  <h3 className="font-bold text-neutral-100 flex items-center gap-1.5">
+                    <Icons.Award className="w-4 h-4 text-violet-400" />
+                    Achievement Badges
+                  </h3>
+                  <p className="text-[10px] text-neutral-500 mt-0.5">
+                    Earn points and display certifications on your financial profile
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 h-full items-center">
+                  {challengesData.badges.map((b) => {
+                    const BadgeIcon = (Icons as any)[b.icon] || Icons.Award;
+                    return (
+                      <div
+                        key={b.id}
+                        className={`p-3 rounded-xl flex flex-col items-center justify-center text-center space-y-2 border transition-all duration-300 ${
+                          b.unlocked
+                            ? "bg-neutral-950/40 border-violet-500/20 shadow-md shadow-violet-500/5"
+                            : "bg-neutral-950/10 border-neutral-900 opacity-40 grayscale"
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                          b.unlocked
+                            ? b.color === "violet" ? "bg-violet-500/10 text-violet-400"
+                              : b.color === "emerald" ? "bg-emerald-500/10 text-emerald-400"
+                              : b.color === "indigo" ? "bg-indigo-500/10 text-indigo-400"
+                              : "bg-amber-500/10 text-amber-400"
+                            : "bg-neutral-900 text-neutral-600"
+                        }`}>
+                          {b.unlocked ? <BadgeIcon className="w-5 h-5" /> : <Icons.Lock className="w-4 h-4" />}
+                        </div>
+                        <div>
+                          <span className="block text-[10px] font-bold text-neutral-200 truncate max-w-[80px]">
+                            {b.title}
+                          </span>
+                          <span className="text-[8px] text-neutral-500 mt-0.5 block line-clamp-1">
+                            {b.description}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Recent Expenses List Shortcut */}
           <div className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl space-y-4">
