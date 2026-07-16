@@ -214,7 +214,7 @@ export default function ExpensesPage() {
       formatDateToDDMMYYYY(exp.date),
       `"${exp.merchant.replace(/"/g, '""')}"`,
       exp.category?.name || "Uncategorized",
-      exp.amount.toFixed(2),
+      Number(exp.amount).toFixed(2),
       exp.payment_method ? exp.payment_method.toUpperCase() : "N/A",
       exp.notes ? `"${exp.notes.replace(/"/g, '""')}"` : ""
     ]);
