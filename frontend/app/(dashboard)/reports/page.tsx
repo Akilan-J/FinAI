@@ -57,16 +57,16 @@ export default function ReportsPage() {
     const headers = ["Category Name", "Amount (INR)", "Percentage Allocation (%)"];
     const rows = distribution.map((item) => [
       item.category_name,
-      item.amount.toFixed(2),
-      item.percentage.toFixed(1),
+      Number(item.amount).toFixed(2),
+      Number(item.percentage).toFixed(1),
     ]);
     const summaryRows = [
       [],
       ["Report Period", getPeriodLabel()],
-      ["Total Income Inflow", summary.total_income.toFixed(2)],
-      ["Total Expenses Outflow", summary.total_spent.toFixed(2)],
-      ["Net Savings Surplus", summary.net_savings.toFixed(2)],
-      ["Savings Rate", `${summary.savings_rate.toFixed(1)}%`],
+      ["Total Income Inflow", Number(summary.total_income).toFixed(2)],
+      ["Total Expenses Outflow", Number(summary.total_spent).toFixed(2)],
+      ["Net Savings Surplus", Number(summary.net_savings).toFixed(2)],
+      ["Savings Rate", `${Number(summary.savings_rate).toFixed(1)}%`],
     ];
     const csvContent = [
       headers.join(","),
