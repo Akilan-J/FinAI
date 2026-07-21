@@ -452,6 +452,13 @@ export default function LoansPage() {
                           style={{ width: `${percent}%` }}
                         />
                       </div>
+
+                      {outstanding > 0 && (
+                        <div className="text-[10px] flex justify-between text-violet-400 font-bold mt-1 bg-violet-950/10 border border-violet-900/20 px-2.5 py-1 rounded-lg">
+                          <span>Remaining {loan.type === "lent" ? "to collect" : "to pay"}:</span>
+                          <span>₹{outstanding.toLocaleString()}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Bottom Repayment & settlement actions */}
