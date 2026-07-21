@@ -330,7 +330,8 @@ export default function LoansPage() {
               <div
                 key={loan.id}
                 className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4"
-                        {editRecordId === loan.id ? (
+              >
+                {editRecordId === loan.id ? (
                   <form onSubmit={(e) => handleUpdateRecord(e, loan.id)} className="space-y-4">
                     <div className="border-b border-neutral-900 pb-2 flex justify-between items-center">
                       <span className="text-xs font-bold text-neutral-200 uppercase tracking-wider">Edit Debt Entry</span>
@@ -526,7 +527,7 @@ export default function LoansPage() {
                       </div>
                     </div>
                   </>
-                )}        </div>
+                )}
               </div>
             );
           })}
