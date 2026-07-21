@@ -24,9 +24,58 @@ export default function LoansPage() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
 
+  // Edit Record States
+  const [editRecordId, setEditRecordId] = useState<string | null>(null);
+  const [editFriendName, setEditFriendName] = useState("");
+  const [editAmount, setEditAmount] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
+  const [editType, setEditType] = useState<"lent" | "borrowed">("lent");
+
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleStartEdit = (loan: Loan) => {
+    setEditRecordId(loan.id);
+    setEditFriendName(loan.friend_name);
+    setEditAmount(String(loan.amount));
+    setEditType(loan.type);
+    if (loan.due_date) {
+      const parts = loan.due_date.split("-");
+      if (parts.length === 3) {
+        setEditDueDate(`${parts[2]}/${parts[1]}/${parts[0]}`);
+      } else {
+        setEditDueDate("");
+      }
+    } else {
+      setEditDueDate("");
+    }
+  };
+
+  const handleUpdateRecord = async (e: React.FormEvent, id: string) => {
+    e.preventDefault();
+    if (!editFriendName.trim() || !editAmount) return;
+
+    try {
+      let formattedDate: string | null = null;
+      if (editDueDate.trim()) {
+        const parts = editDueDate.split("/");
+        formattedDate = `${parts[2]}-${parts[1]}-${parts[0]}`; // YYYY-MM-DD
+      }
+
+      await updateLoan(id, {
+        friend_name: editFriendName,
+        type: editType,
+        amount: parseFloat(editAmount),
+        due_date: formattedDate,
+      });
+
+      setEditRecordId(null);
+      refetch();
+    } catch (err) {
+      alert("Failed to update record. Check if date format matches DD/MM/YYYY.");
+    }
+  };
 
   if (!mounted) {
     return (
@@ -281,123 +330,203 @@ export default function LoansPage() {
               <div
                 key={loan.id}
                 className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4"
-              >
-                {/* Friend Header */}
-                <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
-                  <div>
-                    <span className="block font-bold text-neutral-200 text-sm">
-                      {loan.friend_name}
-                    </span>
-                    <span className="text-[10px] text-neutral-500 mt-1 block">
-                      {loan.due_date ? `Due Date: ${formatDateToDDMMYYYY(loan.due_date)}` : "No Target Due Date"}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                        loan.type === "lent"
-                          ? "bg-emerald-950/20 border border-emerald-800/30 text-emerald-400"
-                          : "bg-rose-950/20 border border-rose-800/30 text-rose-400"
-                      }`}
-                    >
-                      {loan.type === "lent" ? "Lent (Receivable)" : "Borrowed (Payable)"}
-                    </span>
-
-                    <span
-                      className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
-                        loan.status === "settled"
-                          ? "bg-neutral-900 border border-neutral-800 text-neutral-400"
-                          : "bg-violet-950/20 border border-violet-850 text-violet-400"
-                      }`}
-                    >
-                      {loan.status}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Progress values */}
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-neutral-500">Repayment Progress</span>
-                    <span className="text-neutral-300">
-                      ₹{Number(loan.paid_amount).toLocaleString()} / ₹{Number(loan.amount).toLocaleString()} ({percent.toFixed(0)}%)
-                    </span>
-                  </div>
-
-                  <div className="w-full bg-neutral-900/60 h-3 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        loan.type === "lent" ? "bg-emerald-500" : "bg-rose-500"
-                      }`}
-                      style={{ width: `${percent}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Bottom Repayment & settlement actions */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
-                  {editingLoanId === loan.id ? (
-                    <div className="flex items-center gap-2 w-full max-w-[260px]">
-                      <input
-                        type="number"
-                        placeholder="Add Amount (₹)"
-                        value={paymentAmount}
-                        onChange={(e) => setPaymentAmount(e.target.value)}
-                        className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-[10px] text-neutral-100 outline-none w-full"
-                      />
+                        {editRecordId === loan.id ? (
+                  <form onSubmit={(e) => handleUpdateRecord(e, loan.id)} className="space-y-4">
+                    <div className="border-b border-neutral-900 pb-2 flex justify-between items-center">
+                      <span className="text-xs font-bold text-neutral-200 uppercase tracking-wider">Edit Debt Entry</span>
+                      <span className="text-[9px] text-neutral-500 font-semibold">ID: {loan.id.slice(0, 8)}...</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[9px] text-neutral-500 font-bold uppercase">Friend Name</label>
+                        <input
+                          type="text"
+                          value={editFriendName}
+                          onChange={(e) => setEditFriendName(e.target.value)}
+                          className="bg-neutral-950 border border-neutral-800 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 outline-none"
+                          required
+                        />
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[9px] text-neutral-500 font-bold uppercase">Total Amount (₹)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={editAmount}
+                          onChange={(e) => setEditAmount(e.target.value)}
+                          className="bg-neutral-950 border border-neutral-800 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[9px] text-neutral-500 font-bold uppercase">Type</label>
+                        <select
+                          value={editType}
+                          onChange={(e) => setEditType(e.target.value as "lent" | "borrowed")}
+                          className="bg-neutral-950 border border-neutral-800 focus:border-violet-500 rounded-lg px-2 py-1.5 text-xs text-neutral-200 outline-none"
+                        >
+                          <option value="lent">Lent (They owe me)</option>
+                          <option value="borrowed">Borrowed (I owe them)</option>
+                        </select>
+                      </div>
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[9px] text-neutral-500 font-bold uppercase">Due Date (DD/MM/YYYY)</label>
+                        <input
+                          type="text"
+                          value={editDueDate}
+                          placeholder="DD/MM/YYYY"
+                          onChange={(e) => setEditDueDate(e.target.value)}
+                          className="bg-neutral-950 border border-neutral-800 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-xs text-neutral-200 outline-none"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 text-[10px] pt-1">
                       <button
-                        onClick={() => handleAddPayment(loan)}
-                        className="px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-neutral-50 rounded-lg text-[10px] font-bold transition cursor-pointer flex-shrink-0"
-                      >
-                        Save
-                      </button>
-                      <button
-                        onClick={() => setEditingLoanId(null)}
-                        className="text-neutral-500 hover:text-neutral-300 text-[10px] px-1"
+                        type="button"
+                        onClick={() => setEditRecordId(null)}
+                        className="px-3 py-1.5 bg-neutral-900 border border-neutral-800 hover:bg-neutral-850 text-neutral-400 rounded-lg transition"
                       >
                         Cancel
                       </button>
+                      <button
+                        type="submit"
+                        className="px-4 py-1.5 bg-violet-600 hover:bg-violet-550 text-neutral-50 rounded-lg font-bold transition"
+                      >
+                        Save Updates
+                      </button>
                     </div>
-                  ) : (
-                    loan.status === "pending" && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            setEditingLoanId(loan.id);
-                            setPaymentAmount("");
-                          }}
-                          className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 hover:text-neutral-200 transition cursor-pointer"
-                        >
-                          <Icons.Coins className="w-3.5 h-3.5 text-violet-400" />
-                          Record Payback
-                        </button>
+                  </form>
+                ) : (
+                  <>
+                    {/* Friend Header */}
+                    <div className="flex items-center justify-between border-b border-neutral-900 pb-3">
+                      <div>
+                        <span className="block font-bold text-neutral-200 text-sm">
+                          {loan.friend_name}
+                        </span>
+                        <span className="text-[10px] text-neutral-500 mt-1 block">
+                          {loan.due_date ? `Due Date: ${formatDateToDDMMYYYY(loan.due_date)}` : "No Target Due Date"}
+                        </span>
+                      </div>
 
-                        <button
-                          onClick={() => handleSettleFull(loan)}
-                          className="text-[10px] font-bold text-violet-400 hover:text-violet-300 cursor-pointer"
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            loan.type === "lent"
+                              ? "bg-emerald-950/20 border border-emerald-800/30 text-emerald-400"
+                              : "bg-rose-950/20 border border-rose-800/30 text-rose-400"
+                          }`}
                         >
-                          Settle in Full
+                          {loan.type === "lent" ? "Lent (Receivable)" : "Borrowed (Payable)"}
+                        </span>
+
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                            loan.status === "settled"
+                              ? "bg-neutral-900 border border-neutral-800 text-neutral-400"
+                              : "bg-violet-950/20 border border-violet-850 text-violet-400"
+                          }`}
+                        >
+                          {loan.status}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Progress values */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs font-semibold">
+                        <span className="text-neutral-500">Repayment Progress</span>
+                        <span className="text-neutral-300">
+                          ₹{Number(loan.paid_amount).toLocaleString()} / ₹{Number(loan.amount).toLocaleString()} ({percent.toFixed(0)}%)
+                        </span>
+                      </div>
+
+                      <div className="w-full bg-neutral-900/60 h-3 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            loan.type === "lent" ? "bg-emerald-500" : "bg-rose-500"
+                          }`}
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bottom Repayment & settlement actions */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-2">
+                      {editingLoanId === loan.id ? (
+                        <div className="flex items-center gap-2 w-full max-w-[260px]">
+                          <input
+                            type="number"
+                            placeholder="Add Amount (₹)"
+                            value={paymentAmount}
+                            onChange={(e) => setPaymentAmount(e.target.value)}
+                            className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-[10px] text-neutral-100 outline-none w-full"
+                          />
+                          <button
+                            onClick={() => handleAddPayment(loan)}
+                            className="px-3 py-1.5 bg-violet-600 hover:bg-violet-550 text-neutral-50 rounded-lg text-[10px] font-bold transition cursor-pointer flex-shrink-0"
+                          >
+                            Save
+                          </button>
+                          <button
+                            onClick={() => setEditingLoanId(null)}
+                            className="text-neutral-500 hover:text-neutral-300 text-[10px] px-1"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        loan.status === "pending" && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingLoanId(loan.id);
+                                setPaymentAmount("");
+                              }}
+                              className="flex items-center gap-1 text-[10px] font-bold text-neutral-400 hover:text-neutral-200 transition cursor-pointer"
+                            >
+                              <Icons.Coins className="w-3.5 h-3.5 text-violet-400" />
+                              Record Payback
+                            </button>
+
+                            <button
+                              onClick={() => handleSettleFull(loan)}
+                              className="text-[10px] font-bold text-violet-400 hover:text-violet-300 cursor-pointer"
+                            >
+                              Settle in Full
+                            </button>
+                          </div>
+                        )
+                      )}
+
+                      {loan.status === "settled" && (
+                        <span className="text-[10px] text-neutral-500 flex items-center gap-1">
+                          <Icons.CheckCircle className="w-3.5 h-3.5 text-neutral-500" />
+                          Paid off completely
+                        </span>
+                      )}
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        <button
+                          onClick={() => handleStartEdit(loan)}
+                          className="text-neutral-600 hover:text-violet-450 transition"
+                          title="Edit details"
+                        >
+                          <Icons.Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteLoan(loan.id)}
+                          className="text-neutral-600 hover:text-red-400 transition"
+                          title="Delete record"
+                        >
+                          <Icons.Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                    )
-                  )}
-
-                  {loan.status === "settled" && (
-                    <span className="text-[10px] text-neutral-500 flex items-center gap-1">
-                      <Icons.CheckCircle className="w-3.5 h-3.5 text-neutral-500" />
-                      Paid off completely
-                    </span>
-                  )}
-
-                  <button
-                    onClick={() => handleDeleteLoan(loan.id)}
-                    className="text-neutral-600 hover:text-red-400 transition ml-auto"
-                    title="Delete record"
-                  >
-                    <Icons.Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                    </div>
+                  </>
+                )}        </div>
               </div>
             );
           })}
