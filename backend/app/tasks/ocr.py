@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import os
 import threading
 from uuid import UUID
@@ -9,6 +10,8 @@ from sqlalchemy.pool import NullPool
 from app.core.config import settings
 from app.models.receipt import Receipt
 from app.services.ocr import perform_ocr, extract_receipt_fields
+
+logger = logging.getLogger("finai.ocr_task")
 
 celery_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
 celery_session_maker = async_sessionmaker(celery_engine, expire_on_commit=False)
@@ -45,7 +48,7 @@ def process_receipt_ocr_task(receipt_id_str: str):
             result = await db.execute(select(Receipt).where(Receipt.id == receipt_id))
             receipt = result.scalars().first()
             if not receipt:
-                print(f"Receipt {receipt_id_str} not found in database.")
+                logger.warning("Receipt %s not found in database.", receipt_id_str)
                 return
 
             receipt.ocr_status = "processing"
@@ -68,7 +71,7 @@ def process_receipt_ocr_task(receipt_id_str: str):
                 receipt.ocr_status = "completed"
 
             except Exception as e:
-                print(f"Error processing receipt OCR: {e}")
+                logger.warning("Error processing receipt OCR: %s", e)
                 receipt.ocr_status = "failed"
                 receipt.ocr_raw_text = f"Error: {str(e)}"
                 receipt.extracted_json = None

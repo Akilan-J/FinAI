@@ -193,7 +193,7 @@ export default function ExpensesPage() {
         } else if (receipt.ocr_status === "failed") {
           clearInterval(interval);
           setOcrStatusText(null);
-          alert("OCR extraction failed.");
+          alert("Couldn't read this receipt automatically. Please enter the expense manually.");
         }
       } catch (err) {
         // Keep polling

@@ -1,6 +1,5 @@
 import os
 import uuid
-import re
 from datetime import datetime, date, timezone
 from decimal import Decimal
 from sqlalchemy import select, and_, func
@@ -386,129 +385,8 @@ async def create_budget_tool(
         return f"Failed to set budget: {str(e)}"
 
 
-# =====================================================================
-# Local Simulation Fallback
-# =====================================================================
-
-async def mock_agent_stream(prompt: str, db: AsyncSession, user_id: uuid.UUID):
-    prompt_lower = prompt.lower()
-    
-    if "expense" in prompt_lower or "spent" in prompt_lower:
-        words = set(re.findall(r'\b\w+\b', prompt_lower))
-        if any(keyword in words for keyword in ["delete", "remove", "cancel"]):
-            amount_match = re.search(r'(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', prompt_lower)
-            amount = float(amount_match.group(1)) if amount_match else None
-            
-            merchant = None
-            merchant_match = re.search(r'(?:at|from|to)\s+([a-zA-Z0-9\s/:]+)', prompt)
-            if merchant_match:
-                merchant = re.sub(r'yesterday|today|\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}', '', merchant_match.group(1), flags=re.IGNORECASE).strip()
-            
-            date_str = None
-            date_match = re.search(r'(\d{4}-\d{2}-\d{2})', prompt_lower)
-            if date_match:
-                date_str = date_match.group(1)
-            elif "yesterday" in prompt_lower:
-                from datetime import timedelta
-                date_str = (date.today() - timedelta(days=1)).isoformat()
-                
-            result = await delete_expense_tool(db, user_id, merchant=merchant, date_str=date_str, amount=amount)
-            yield f"🤖 *Simulation Mode (No API Key)*:\n\n{result}"
-            
-        elif any(keyword in words for keyword in ["change", "update", "modify", "correct"]):
-            new_amount_match = re.search(r'(?:to|of|be)\s+(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', prompt_lower)
-            new_amount = float(new_amount_match.group(1)) if new_amount_match else None
-            
-            new_payment_method = None
-            for pm in ["cash", "card", "upi", "netbanking", "wallet"]:
-                if pm in prompt_lower:
-                    new_payment_method = pm
-                    break
-            
-            search_merchant = None
-            merchant_match = re.search(r'(?:for|at|from|to)\s+([a-zA-Z0-9\s/:]+)', prompt)
-            if merchant_match:
-                search_merchant = re.sub(r'yesterday|today|\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}', '', merchant_match.group(1), flags=re.IGNORECASE).strip()
-                
-            result = await update_expense_tool(db, user_id, search_merchant=search_merchant, new_amount=new_amount, new_payment_method=new_payment_method)
-            yield f"🤖 *Simulation Mode (No API Key)*:\n\n{result}"
-            
-        elif any(keyword in words for keyword in ["log", "add", "create", "new", "record"]):
-            # Split by conjunctions to identify multiple expenses
-            segments = re.split(r'\band\b|\balso\b|\bthen\b|,', prompt)
-            expenses_logged = []
-            
-            for seg in segments:
-                seg_lower = seg.lower()
-                amount_match = re.search(r'(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', seg_lower)
-                if amount_match:
-                    amount = float(amount_match.group(1))
-                    
-                    merchant = "Store"
-                    merchant_match = re.search(r'(?:at|from|to)\s+([a-zA-Z0-9\s/:]+)', seg)
-                    if merchant_match:
-                        merchant = re.sub(r'yesterday|today|\d{4}-\d{2}-\d{2}|\d{2}/\d{2}/\d{4}', '', merchant_match.group(1), flags=re.IGNORECASE).strip()
-                    
-                    category = "Other"
-                    for cat in ["food", "rent", "travel", "coffee", "groceries", "utilities", "shopping", "entertainment"]:
-                        if cat in seg_lower:
-                            category = cat
-                            break
-                            
-                    payment_method = "other"
-                    for pm in ["cash", "card", "upi", "netbanking", "wallet"]:
-                        if pm in seg_lower:
-                            payment_method = pm
-                            break
-                            
-                    # Parse dates for individual segment if specified
-                    date_str = date.today().isoformat()
-                    date_match = re.search(r'(\d{4}-\d{2}-\d{2})', seg)
-                    if date_match:
-                        date_str = date_match.group(1)
-                    elif "yesterday" in seg_lower:
-                        from datetime import timedelta
-                        date_str = (date.today() - timedelta(days=1)).isoformat()
-                    
-                    result = await create_expense_tool(db, user_id, amount, category, merchant, date_str, payment_method)
-                    expenses_logged.append(result)
-            
-            if expenses_logged:
-                yield f"🤖 *Simulation Mode (No API Key)*:\n\n" + "\n".join(expenses_logged)
-            else:
-                yield "🤖 *Simulation Mode (No API Key)*:\n\nCould not parse expense details. Please specify an amount and a merchant or description."
-        else:
-            result = await list_expenses_tool(db, user_id)
-            yield f"🤖 *Simulation Mode (No API Key)*:\n\nHere are your recent expenses:\n{result}"
-            
-    elif "budget" in prompt_lower:
-        words = set(re.findall(r'\b\w+\b', prompt_lower))
-        if any(keyword in words for keyword in ["set", "add", "create", "limit"]):
-            amount_match = re.search(r'(?:rs\.?|₹|inr)?\s*(\d+(?:\.\d{1,2})?)', prompt_lower)
-            amount = float(amount_match.group(1)) if amount_match else 5000.0
-            
-            category = "Other"
-            for cat in ["food", "rent", "travel", "coffee", "groceries", "utilities", "shopping", "entertainment"]:
-                if cat in prompt_lower:
-                    category = cat
-                    break
-            result = await create_budget_tool(db, user_id, amount, category)
-            yield f"🤖 *Simulation Mode (No API Key)*:\n\n{result}"
-        else:
-            result = await list_budgets_tool(db, user_id)
-            yield f"🤖 *Simulation Mode (No API Key)*:\n\nHere are your active budgets:\n{result}"
-            
-    elif any(keyword in prompt_lower for keyword in ["analytics", "summary", "saving", "income"]):
-        result = await get_analytics_summary_tool(db, user_id)
-        yield f"🤖 *Simulation Mode (No API Key)*:\n\n{result}"
-        
-    else:
-        yield "🤖 *Simulation Mode (No API Key)*:\n\nHello! I am your FinAI assistant. You can ask me to:\n" \
-              "- **List recent expenses** (e.g., 'show my expenses')\n" \
-              "- **Log a new expense** (e.g., 'log coffee expense of ₹150 at Cafe')\n" \
-              "- **Show budgets** (e.g., 'what are my budgets?')\n" \
-              "- **Set a budget** (e.g., 'set budget of ₹5000 for groceries')\n" \
-              "- **Check analytics** (e.g., 'show monthly summary')"
+class AIAssistantUnavailableError(RuntimeError):
+    """Raised when no AI provider is configured, or every configured provider fails."""
 
 
 # =====================================================================
@@ -622,7 +500,13 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
     latest_prompt = messages[-1]["content"] if messages else ""
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
     gemini_key = os.getenv("GEMINI_API_KEY")
-    
+
+    if not openrouter_key and not gemini_key:
+        raise AIAssistantUnavailableError(
+            "The AI assistant is not configured. Set OPENROUTER_API_KEY or GEMINI_API_KEY "
+            "in the backend environment to enable chat."
+        )
+
     if openrouter_key:
         try:
             import json
@@ -857,16 +741,12 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
                 yield message.content
             return
         except Exception as err:
-            yield f"⚠️ *OpenRouter Error*: {str(err)}\n\nFalling back to local simulator:\n"
-            async for chunk in mock_agent_stream(latest_prompt, db, user_id):
-                yield chunk
-            return
+            if not gemini_key:
+                raise AIAssistantUnavailableError(
+                    f"The AI assistant is temporarily unavailable (OpenRouter error: {err})."
+                ) from err
+            # Fall through to try Gemini directly below.
 
-    if not gemini_key:
-        async for chunk in mock_agent_stream(latest_prompt, db, user_id):
-            yield chunk
-        return
-        
     try:
         import google.generativeai as genai
         from google.generativeai.types import content_types
@@ -962,7 +842,7 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
             yield response.text
             
     except Exception as err:
-        yield f"⚠️ *Gemini Error*: {str(err)}\n\nFalling back to local simulator:\n"
-        async for chunk in mock_agent_stream(latest_prompt, db, user_id):
-            yield chunk
+        raise AIAssistantUnavailableError(
+            f"The AI assistant is temporarily unavailable (Gemini error: {err})."
+        ) from err
 

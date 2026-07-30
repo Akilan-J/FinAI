@@ -1,8 +1,16 @@
+import logging
 import os
 import re
 from decimal import Decimal
 from datetime import date
 from google.cloud import vision
+
+logger = logging.getLogger("finai.ocr")
+
+
+class OcrUnavailableError(RuntimeError):
+    """Raised when no OCR provider is configured, or every configured provider fails."""
+
 
 def perform_ocr(file_path: str) -> str:
     if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
@@ -18,7 +26,7 @@ def perform_ocr(file_path: str) -> str:
             if texts:
                 return texts[0].description
         except Exception as e:
-            print(f"Google Cloud Vision OCR error: {e}. Falling back to other providers.")
+            logger.warning("Google Cloud Vision OCR error: %s. Falling back to other providers.", e)
 
     # Try OpenRouter Multimodal OCR
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
@@ -70,7 +78,7 @@ def perform_ocr(file_path: str) -> str:
             if extracted_text:
                 return extracted_text
         except Exception as e:
-            print(f"OpenRouter multimodal OCR error: {e}")
+            logger.warning("OpenRouter multimodal OCR error: %s", e)
 
     # Try Gemini API Multimodal OCR
     gemini_key = os.getenv("GEMINI_API_KEY")
@@ -102,25 +110,12 @@ def perform_ocr(file_path: str) -> str:
             if response.text:
                 return response.text
         except Exception as e:
-            print(f"Gemini direct multimodal OCR error: {e}")
+            logger.warning("Gemini direct multimodal OCR error: %s", e)
 
-    filename = os.path.basename(file_path).lower()
-    file_content = ""
-    try:
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-                file_content = f.read(1000).lower()
-    except Exception:
-        pass
-    
-    if "uber" in filename or "uber" in file_content:
-        return "UBER TRIP INFLOW RECEIPT\nDate: 2026-07-05\nTotal Amount: 350.00\nPayment: UPI\nThanks for riding!"
-    elif "starbucks" in filename or "starbucks" in file_content:
-        return "STARBUCKS COFFEE STORE #1432\nDate: 2026-07-09\n1x Mocha Late - 280.00\nTotal: 280.00\nPayment: Card"
-    elif "amazon" in filename or "amazon" in file_content:
-        return "AMAZON RETAIL BILL\nInvoice Date: 2026-07-08\nTotal Price: 1850.00\nPayment: Net Banking"
-    else:
-        return "WALMART DEPARTMENT STORE\nDate: 2026-07-07\nTotal: 1250.50\nPayment: Cash"
+    raise OcrUnavailableError(
+        "Could not extract text from this receipt. No OCR provider is configured or all "
+        "configured providers (Google Cloud Vision, OpenRouter, Gemini) failed."
+    )
 
 
 def extract_receipt_fields(text: str) -> dict:
