@@ -5,6 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import * as Icons from "lucide-react";
 import { Category, Expense } from "@/hooks/use-expenses";
 import { dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
+import { currencySymbol, SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 interface ExpenseFormDrawerProps {
   isOpen: boolean;
@@ -13,6 +15,7 @@ interface ExpenseFormDrawerProps {
   expense?: Expense | null;
   onSubmit: (data: {
     amount: number;
+    currency?: string;
     merchant: string;
     payment_method: string;
     date: string;
@@ -30,7 +33,9 @@ export default function ExpenseFormDrawer({
   onSubmit,
   loading,
 }: ExpenseFormDrawerProps) {
+  const { user } = useAuth();
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("");
   const [merchant, setMerchant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [date, setDate] = useState("");
@@ -44,6 +49,7 @@ export default function ExpenseFormDrawer({
       setFormError(null);
       if (expense) {
         setAmount(expense.amount.toString());
+        setCurrency(expense.currency || user?.currency || "INR");
         setMerchant(expense.merchant);
         setPaymentMethod(expense.payment_method);
         setDate(dbDateToInputDate(expense.date));
@@ -51,6 +57,7 @@ export default function ExpenseFormDrawer({
         setNotes(expense.notes || "");
       } else {
         setAmount("");
+        setCurrency(user?.currency || "INR");
         setMerchant("");
         setPaymentMethod("card");
         setDate(dbDateToInputDate(new Date().toISOString().split("T")[0])); // today's date
@@ -60,7 +67,7 @@ export default function ExpenseFormDrawer({
         setNotes("");
       }
     }
-  }, [isOpen, expense, categories]);
+  }, [isOpen, expense, categories, user?.currency]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +101,7 @@ export default function ExpenseFormDrawer({
     try {
       await onSubmit({
         amount: numericAmount,
+        currency: currency || undefined,
         merchant: merchant.trim(),
         payment_method: paymentMethod,
         date: formattedDate,
@@ -157,21 +165,42 @@ export default function ExpenseFormDrawer({
               {/* Amount */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                  Amount (₹)
+                  Amount
                 </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-3.5 text-neutral-500 font-medium">₹</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl pl-9 pr-4 py-3.5 text-lg font-semibold text-neutral-100 placeholder-neutral-700 outline-none transition"
-                    placeholder="0.00"
-                    required
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-4 top-3.5 text-neutral-500 font-medium">
+                      {currencySymbol(currency)}
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl pl-9 pr-4 py-3.5 text-lg font-semibold text-neutral-100 placeholder-neutral-700 outline-none transition"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+                  <select
+                    value={currency}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-3 text-sm text-neutral-300 outline-none transition cursor-pointer"
+                    title="Transaction currency"
+                  >
+                    {SUPPORTED_CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.code}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+                {currency && currency !== user?.currency && (
+                  <p className="text-[10px] text-neutral-500 mt-1.5">
+                    Will be converted to your home currency ({user?.currency}) for reports.
+                  </p>
+                )}
               </div>
 
               {/* Merchant */}

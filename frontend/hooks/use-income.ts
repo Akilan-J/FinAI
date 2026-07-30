@@ -6,6 +6,8 @@ export interface Income {
   user_id: string;
   source: string;
   amount: number;
+  currency: string;
+  amount_home_currency: number;
   date: string;
   notes: string | null;
   is_recurring: boolean;
@@ -69,6 +71,7 @@ export function useIncomeMutations() {
   const createIncome = async (data: {
     source: string;
     amount: number;
+    currency?: string;
     date: string;
     notes?: string | null;
     is_recurring?: boolean;
@@ -94,6 +97,7 @@ export function useIncomeMutations() {
     data: {
       source?: string;
       amount?: number;
+      currency?: string;
       date?: string;
       notes?: string | null;
       is_recurring?: boolean;

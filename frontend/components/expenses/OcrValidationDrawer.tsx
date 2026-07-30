@@ -6,6 +6,8 @@ import * as Icons from "lucide-react";
 import { Category } from "@/hooks/use-expenses";
 import { useConvertReceipt, Receipt } from "@/hooks/use-receipts";
 import { dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
+import { currencySymbol } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 interface OcrValidationDrawerProps {
   isOpen: boolean;
@@ -23,6 +25,8 @@ export default function OcrValidationDrawer({
   onSuccess,
 }: OcrValidationDrawerProps) {
   const { convertReceipt, loading } = useConvertReceipt();
+  const { user } = useAuth();
+  const symbol = currencySymbol(user?.currency);
 
   // Form states
   const [amount, setAmount] = useState("");
@@ -165,10 +169,10 @@ export default function OcrValidationDrawer({
                 {/* Amount */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                    Extracted Amount (₹)
+                    Extracted Amount ({symbol})
                   </label>
                   <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-neutral-500 font-medium">₹</span>
+                    <span className="absolute left-4 top-3.5 text-neutral-500 font-medium">{symbol}</span>
                     <input
                       type="number"
                       step="0.01"

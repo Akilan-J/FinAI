@@ -4,6 +4,8 @@ import React from "react";
 import * as Icons from "lucide-react";
 import { Expense } from "@/hooks/use-expenses";
 import { formatDateToDDMMYYYY } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 export function CategoryIcon({ name, className = "w-4 h-4" }: { name: string; className?: string }) {
   const IconComponent = (Icons as any)[name] || Icons.HelpCircle;
@@ -31,6 +33,7 @@ export default function ExpenseTable({
   onDelete,
   onBulkDelete,
 }: ExpenseTableProps) {
+  const { user } = useAuth();
   const allIds = expenses.map((e) => e.id);
   const isAllSelected = allIds.length > 0 && selectedIds.length === allIds.length;
 
@@ -146,10 +149,12 @@ export default function ExpenseTable({
                     {expense.notes || "—"}
                   </td>
                   <td className="py-4 px-5 text-right font-semibold text-neutral-100 whitespace-nowrap">
-                    ₹{Number(expense.amount).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
+                    {formatCurrency(expense.amount, expense.currency)}
+                    {expense.currency && expense.currency !== user?.currency && (
+                      <span className="block text-[10px] font-normal text-neutral-500">
+                        ≈ {formatCurrency(expense.amount_home_currency, user?.currency)}
+                      </span>
+                    )}
                   </td>
                   <td className="py-4 px-5 text-center">
                     <div className="flex items-center justify-center gap-2">

@@ -28,8 +28,12 @@ import { useGoals, useGoalMutations } from "@/hooks/use-goals";
 import { useRecurringBills, useRecurringMutations } from "@/hooks/use-recurring";
 import { useBudgets } from "@/hooks/use-budgets";
 import { useChallenges } from "@/hooks/use-challenges";
+import { formatCurrency, currencySymbol } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 export default function DashboardPage() {
+  const { user } = useAuth();
+  const symbol = currencySymbol(user?.currency);
   const [mounted, setMounted] = useState(false);
   const [period, setPeriod] = useState(() => {
     const today = new Date();
@@ -337,7 +341,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-4">
                   <span className="text-2xl font-bold text-neutral-100">
-                    ₹{Number(summary.total_income).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {formatCurrency(Number(summary.total_income), user?.currency)}
                   </span>
                   <span className="block text-[10px] text-neutral-500 mt-1">
                     Monthly deposits received
@@ -357,7 +361,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-4">
                   <span className="text-2xl font-bold text-neutral-100">
-                    ₹{Number(summary.total_spent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {formatCurrency(Number(summary.total_spent), user?.currency)}
                   </span>
                   <span className="block text-[10px] text-neutral-500 mt-1">
                     Category outflow logs
@@ -377,7 +381,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="mt-4">
                   <span className={`text-2xl font-bold ${Number(summary.net_savings) >= 0 ? "text-neutral-100" : "text-rose-400"}`}>
-                    {Number(summary.net_savings) >= 0 ? "" : "-"}₹{Math.abs(Number(summary.net_savings)).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    {Number(summary.net_savings) >= 0 ? "" : "-"}{formatCurrency(Math.abs(Number(summary.net_savings)), user?.currency)}
                   </span>
                   <span className="block text-[10px] text-neutral-500 mt-1">
                     Retained inflow balance
@@ -438,7 +442,7 @@ export default function DashboardPage() {
                   .map(b => (
                     <div key={b.id} className="text-xs text-orange-300/90 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                      <span>{b.category?.name || "Uncategorized"}: <strong>{b.progress.percentage_used.toFixed(0)}% used</strong> (₹{Math.round(b.spent)} / ₹{Math.round(b.amount_limit)})</span>
+                      <span>{b.category?.name || "Uncategorized"}: <strong>{b.progress.percentage_used.toFixed(0)}% used</strong> ({formatCurrency(Math.round(b.spent), user?.currency)} / {formatCurrency(Math.round(b.amount_limit), user?.currency)})</span>
                     </div>
                   ))}
               </div>
@@ -548,7 +552,7 @@ export default function DashboardPage() {
                       Total Spent
                     </span>
                     <span className="text-sm font-black text-neutral-100">
-                      ₹{summary ? Math.round(Number(summary.total_spent)).toLocaleString() : "0"}
+                      {formatCurrency(summary ? Math.round(Number(summary.total_spent)) : 0, user?.currency, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                     </span>
                   </div>
                 )}
@@ -610,7 +614,7 @@ export default function DashboardPage() {
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="Target Amount (₹)"
+                      placeholder={`Target Amount (${symbol})`}
                       value={newGoalTarget}
                       onChange={(e) => setNewGoalTarget(e.target.value)}
                       className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-xs text-neutral-100 outline-none"
@@ -660,7 +664,7 @@ export default function DashboardPage() {
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="font-black text-neutral-300">
-                              ₹{Number(goal.current_amount).toLocaleString()} / ₹{Number(goal.target_amount).toLocaleString()}
+                              {formatCurrency(Number(goal.current_amount), user?.currency)} / {formatCurrency(Number(goal.target_amount), user?.currency)}
                             </span>
                             <span className="font-bold text-violet-400">({percent.toFixed(0)}%)</span>
                           </div>
@@ -680,7 +684,7 @@ export default function DashboardPage() {
                             <div className="flex items-center gap-2 w-full max-w-[240px]">
                               <input
                                 type="number"
-                                placeholder="Add Amount (₹)"
+                                placeholder={`Add Amount (${symbol})`}
                                 value={goalProgressAmount}
                                 onChange={(e) => setGoalProgressAmount(e.target.value)}
                                 className="w-full bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-2 py-1 text-[10px] text-neutral-100 outline-none"
@@ -759,7 +763,7 @@ export default function DashboardPage() {
                     <input
                       type="number"
                       step="0.01"
-                      placeholder="Amount (₹)"
+                      placeholder={`Amount (${symbol})`}
                       value={newBillAmount}
                       onChange={(e) => setNewBillAmount(e.target.value)}
                       className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-3 py-1.5 text-neutral-100 outline-none"
@@ -828,7 +832,7 @@ export default function DashboardPage() {
 
                         <div className="flex items-center gap-3">
                           <div className="text-right">
-                            <span className="block font-black text-xs text-neutral-300">₹{Number(bill.amount).toLocaleString()}</span>
+                            <span className="block font-black text-xs text-neutral-300">{formatCurrency(Number(bill.amount), user?.currency)}</span>
                             <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold mt-1 ${badgeColor}`}>
                               {badgeText}
                             </span>
@@ -1018,9 +1022,7 @@ export default function DashboardPage() {
                           </td>
                           <td className="py-3 px-3 capitalize text-neutral-400">{expense.payment_method}</td>
                           <td className="py-3 px-3 text-right font-bold text-neutral-200">
-                            ₹{Number(expense.amount).toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                            })}
+                            {formatCurrency(Number(expense.amount), expense.currency || user?.currency)}
                           </td>
                         </tr>
                       );

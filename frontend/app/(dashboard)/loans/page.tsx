@@ -4,9 +4,13 @@ import React, { useState, useEffect } from "react";
 import * as Icons from "lucide-react";
 import { useLoans, useLoanMutations, Loan } from "@/hooks/use-loans";
 import { formatDateToDDMMYYYY } from "@/lib/utils";
+import { formatCurrency, currencySymbol } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 export default function LoansPage() {
   const [mounted, setMounted] = useState(false);
+  const { user } = useAuth();
+  const symbol = currencySymbol(user?.currency);
   const { loans, loading, error, refetch } = useLoans();
   const { createLoan, updateLoan, deleteLoan } = useLoanMutations();
 
@@ -236,7 +240,7 @@ export default function LoansPage() {
             <Icons.ArrowUpRight className="w-4 h-4 text-emerald-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-emerald-400">
-            ₹{totalLent.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatCurrency(totalLent, user?.currency)}
           </div>
           <span className="block text-[10px] text-neutral-500 mt-1">Outstanding lent balance</span>
         </div>
@@ -248,7 +252,7 @@ export default function LoansPage() {
             <Icons.ArrowDownRight className="w-4 h-4 text-rose-400" />
           </div>
           <div className="mt-2 text-2xl font-black text-rose-400">
-            ₹{totalBorrowed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {formatCurrency(totalBorrowed, user?.currency)}
           </div>
           <span className="block text-[10px] text-neutral-500 mt-1">Outstanding debts to others</span>
         </div>
@@ -260,7 +264,7 @@ export default function LoansPage() {
             <Icons.TrendingUp className="w-4 h-4 text-violet-400" />
           </div>
           <div className={`mt-2 text-2xl font-black ${netBalance >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
-            {netBalance >= 0 ? "+" : ""}₹{netBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            {netBalance >= 0 ? "+" : ""}{formatCurrency(netBalance, user?.currency)}
           </div>
           <span className="block text-[10px] text-neutral-500 mt-1">Net financial surplus/deficit</span>
         </div>
@@ -290,7 +294,7 @@ export default function LoansPage() {
             <input
               type="number"
               step="0.01"
-              placeholder="Amount (₹)"
+              placeholder={`Amount (${symbol})`}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-xs text-neutral-200 outline-none"
@@ -383,7 +387,7 @@ export default function LoansPage() {
                         />
                       </div>
                       <div className="flex flex-col space-y-1">
-                        <label className="text-[9px] text-neutral-500 font-bold uppercase">Total Amount (₹)</label>
+                        <label className="text-[9px] text-neutral-500 font-bold uppercase">Total Amount ({symbol})</label>
                         <input
                           type="number"
                           step="0.01"
@@ -481,7 +485,7 @@ export default function LoansPage() {
                       <div className="flex justify-between text-xs font-semibold">
                         <span className="text-neutral-500">Repayment Progress</span>
                         <span className="text-neutral-300">
-                          ₹{Number(loan.paid_amount).toLocaleString()} / ₹{Number(loan.amount).toLocaleString()} ({percent.toFixed(0)}%)
+                          {formatCurrency(Number(loan.paid_amount), user?.currency)} / {formatCurrency(Number(loan.amount), user?.currency)} ({percent.toFixed(0)}%)
                         </span>
                       </div>
 
@@ -497,7 +501,7 @@ export default function LoansPage() {
                       {outstanding > 0 && (
                         <div className="text-[10px] flex justify-between text-violet-400 font-bold mt-1 bg-violet-950/10 border border-violet-900/20 px-2.5 py-1 rounded-lg">
                           <span>Remaining {loan.type === "lent" ? "to collect" : "to pay"}:</span>
-                          <span>₹{outstanding.toLocaleString()}</span>
+                          <span>{formatCurrency(outstanding, user?.currency)}</span>
                         </div>
                       )}
                     </div>
@@ -508,7 +512,7 @@ export default function LoansPage() {
                         <div className="flex items-center gap-2 w-full max-w-[260px]">
                           <input
                             type="number"
-                            placeholder="Add Amount (₹)"
+                            placeholder={`Add Amount (${symbol})`}
                             value={paymentAmount}
                             onChange={(e) => setPaymentAmount(e.target.value)}
                             className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-lg px-2.5 py-1.5 text-[10px] text-neutral-100 outline-none w-full"

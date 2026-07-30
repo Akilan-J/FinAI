@@ -136,6 +136,7 @@ export default function ExpensesPage() {
 
   const handleDrawerSubmit = async (data: {
     amount: number;
+    currency?: string;
     merchant: string;
     payment_method: string;
     date: string;

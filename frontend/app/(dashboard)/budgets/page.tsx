@@ -6,8 +6,12 @@ import { useCategories } from "@/hooks/use-expenses";
 import { useBudgets, useBudgetMutations, Budget } from "@/hooks/use-budgets";
 import { CategoryIcon } from "@/components/expenses/ExpenseTable";
 import ConfirmModal from "@/components/ConfirmModal";
+import { formatCurrency, currencySymbol } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 export default function BudgetsPage() {
+  const { user } = useAuth();
+  const symbol = currencySymbol(user?.currency);
   const { categories } = useCategories();
 
   // Current period (defaulting to current month in YYYY-MM format)
@@ -279,7 +283,7 @@ export default function BudgetsPage() {
                   <div className="flex justify-between items-baseline text-xs">
                     <span className="text-neutral-400 font-medium">Spent</span>
                     <span className="text-neutral-100 font-bold">
-                      ₹{spent.toLocaleString()} / <span className="text-neutral-400 font-normal">₹{limit.toLocaleString()}</span>
+                      {formatCurrency(spent, user?.currency)} / <span className="text-neutral-400 font-normal">{formatCurrency(limit, user?.currency)}</span>
                     </span>
                   </div>
 
@@ -303,7 +307,7 @@ export default function BudgetsPage() {
                 {ratio >= 1.0 ? (
                   <div className="flex items-center gap-1.5 mt-4 p-2.5 rounded-lg bg-rose-950/20 border border-rose-800/30 text-[10px] text-rose-400 font-medium">
                     <Icons.AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-                    Budget limit exceeded by ₹{(spent - limit).toLocaleString()}!
+                    Budget limit exceeded by {formatCurrency(spent - limit, user?.currency)}!
                   </div>
                 ) : ratio >= budget.alert_pct ? (
                   <div className="flex items-center gap-1.5 mt-4 p-2.5 rounded-lg bg-amber-950/20 border border-amber-800/30 text-[10px] text-amber-400 font-medium">
@@ -370,7 +374,7 @@ export default function BudgetsPage() {
               {/* Limit */}
               <div>
                 <label className="block text-[10px] uppercase font-bold tracking-wider text-neutral-500 mb-1.5">
-                  Amount Limit (₹)
+                  Amount Limit ({symbol})
                 </label>
                 <input
                   type="number"

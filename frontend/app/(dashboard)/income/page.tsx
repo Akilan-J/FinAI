@@ -6,8 +6,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useIncome, useIncomeMutations, Income } from "@/hooks/use-income";
 import ConfirmModal from "@/components/ConfirmModal";
 import { formatDateToDDMMYYYY, dbDateToInputDate, inputDateToDbDate } from "@/lib/utils";
+import { formatCurrency, currencySymbol, SUPPORTED_CURRENCIES } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 export default function IncomePage() {
+  const { user } = useAuth();
+  const symbol = currencySymbol(user?.currency);
   // Filters state
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -28,6 +32,7 @@ export default function IncomePage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [source, setSource] = useState("");
   const [amount, setAmount] = useState("");
+  const [currency, setCurrency] = useState("");
   const [date, setDate] = useState("");
   const [notes, setNotes] = useState("");
   const [isRecurring, setIsRecurring] = useState(false);
@@ -36,6 +41,7 @@ export default function IncomePage() {
   const handleOpenAddDrawer = () => {
     setSource("");
     setAmount("");
+    setCurrency(user?.currency || "INR");
     setDate(dbDateToInputDate(new Date().toISOString().split("T")[0])); // today
     setNotes("");
     setIsRecurring(false);
@@ -104,6 +110,7 @@ export default function IncomePage() {
       await createIncome({
         source: source.trim(),
         amount: numericAmount,
+        currency: currency || undefined,
         date: formattedDate,
         notes: notes.trim() || null,
         is_recurring: isRecurring,
@@ -233,9 +240,12 @@ export default function IncomePage() {
                     {inc.notes || "—"}
                   </td>
                   <td className="py-4 px-5 text-right font-bold text-emerald-400 whitespace-nowrap">
-                    +₹{Number(inc.amount).toLocaleString(undefined, {
-                      minimumFractionDigits: 2,
-                    })}
+                    +{formatCurrency(Number(inc.amount), inc.currency || user?.currency)}
+                    {inc.currency && inc.currency !== user?.currency && (
+                      <span className="block text-[10px] font-normal text-neutral-500">
+                        ≈ {formatCurrency(inc.amount_home_currency, user?.currency)}
+                      </span>
+                    )}
                   </td>
                   <td className="py-4 px-5 text-center">
                     <button
@@ -321,21 +331,42 @@ export default function IncomePage() {
                 {/* Amount */}
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">
-                    Amount Inflow (₹)
+                    Amount Inflow
                   </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-3.5 text-neutral-500 font-medium">₹</span>
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl pl-9 pr-4 py-3.5 text-lg font-semibold text-neutral-100 placeholder-neutral-700 outline-none transition"
-                      placeholder="0.00"
-                      required
-                    />
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-4 top-3.5 text-neutral-500 font-medium">
+                        {currencySymbol(currency)}
+                      </span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="w-full bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl pl-9 pr-4 py-3.5 text-lg font-semibold text-neutral-100 placeholder-neutral-700 outline-none transition"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                    <select
+                      value={currency}
+                      onChange={(e) => setCurrency(e.target.value)}
+                      className="bg-neutral-950/60 border border-neutral-800 focus:border-violet-500 rounded-xl px-3 text-sm text-neutral-300 outline-none transition cursor-pointer"
+                      title="Transaction currency"
+                    >
+                      {SUPPORTED_CURRENCIES.map((c) => (
+                        <option key={c.code} value={c.code}>
+                          {c.code}
+                        </option>
+                      ))}
+                    </select>
                   </div>
+                  {currency && currency !== user?.currency && (
+                    <p className="text-[10px] text-neutral-500 mt-1.5">
+                      Will be converted to your home currency ({user?.currency}) for reports.
+                    </p>
+                  )}
                 </div>
 
                 {/* Source */}

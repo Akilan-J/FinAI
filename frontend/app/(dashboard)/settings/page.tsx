@@ -5,6 +5,7 @@ import * as Icons from "lucide-react";
 import { useAuth } from "@/stores/auth-store";
 import { fetchApi } from "@/lib/api-client";
 import { useCategories } from "@/hooks/use-expenses";
+import { SUPPORTED_CURRENCIES } from "@/lib/currency";
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
@@ -204,10 +205,11 @@ export default function SettingsPage() {
                   onChange={(e) => setCurrency(e.target.value)}
                   className="bg-neutral-900 border border-neutral-800 focus:border-violet-500 rounded-xl px-4 py-2.5 text-xs text-neutral-200 outline-none"
                 >
-                  <option value="INR">INR (₹) - Indian Rupee</option>
-                  <option value="USD">USD ($) - United States Dollar</option>
-                  <option value="EUR">EUR (€) - Euro</option>
-                  <option value="GBP">GBP (£) - British Pound Sterling</option>
+                  {SUPPORTED_CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.code} ({c.symbol}) - {c.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 

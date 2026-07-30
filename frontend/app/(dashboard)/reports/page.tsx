@@ -8,8 +8,11 @@ import {
   useMonthlyTrends,
 } from "@/hooks/use-analytics";
 import { formatDateToDDMMYYYY } from "@/lib/utils";
+import { formatCurrency } from "@/lib/currency";
+import { useAuth } from "@/stores/auth-store";
 
 export default function ReportsPage() {
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [period, setPeriod] = useState(() => {
     const today = new Date();
@@ -54,7 +57,7 @@ export default function ReportsPage() {
 
   const handleExportCSV = () => {
     if (!summary || distribution.length === 0) return;
-    const headers = ["Category Name", "Amount (INR)", "Percentage Allocation (%)"];
+    const headers = ["Category Name", `Amount (${user?.currency || "INR"})`, "Percentage Allocation (%)"];
     const rows = distribution.map((item) => [
       item.category_name,
       Number(item.amount).toFixed(2),
@@ -182,7 +185,7 @@ export default function ReportsPage() {
                   <Icons.ArrowUpRight className="w-4 h-4 text-emerald-500" />
                 </div>
                 <div className="mt-2 text-2xl font-black text-neutral-100 print:text-black">
-                  ₹{Number(summary.total_income).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {formatCurrency(Number(summary.total_income), user?.currency)}
                 </div>
                 <span className="block text-[10px] text-neutral-500 mt-1">Total income logs registered</span>
               </div>
@@ -194,7 +197,7 @@ export default function ReportsPage() {
                   <Icons.ArrowDownRight className="w-4 h-4 text-rose-500" />
                 </div>
                 <div className="mt-2 text-2xl font-black text-neutral-100 print:text-black">
-                  ₹{Number(summary.total_spent).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {formatCurrency(Number(summary.total_spent), user?.currency)}
                 </div>
                 <span className="block text-[10px] text-neutral-500 mt-1">Total expenses outflow</span>
               </div>
@@ -206,7 +209,7 @@ export default function ReportsPage() {
                   <Icons.TrendingUp className="w-4 h-4 text-violet-500" />
                 </div>
                 <div className={`mt-2 text-2xl font-black ${Number(summary.net_savings) >= 0 ? "text-emerald-400" : "text-rose-400"} print:text-black`}>
-                  ₹{Number(summary.net_savings).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {formatCurrency(Number(summary.net_savings), user?.currency)}
                 </div>
                 <span className="block text-[10px] text-neutral-500 mt-1">Surplus/deficit margin</span>
               </div>
@@ -247,7 +250,7 @@ export default function ReportsPage() {
                       <div className="flex items-center justify-between text-xs text-neutral-300 print:text-black">
                         <span className="font-semibold">{item.category_name}</span>
                         <div className="font-bold flex gap-2">
-                          <span>₹{Number(item.amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span>{formatCurrency(Number(item.amount), user?.currency)}</span>
                           <span className="text-neutral-500">({item.percentage.toFixed(1)}%)</span>
                         </div>
                       </div>
@@ -294,12 +297,12 @@ export default function ReportsPage() {
                         <div>
                           <span className="block font-bold text-neutral-200 text-xs print:text-black">{label}</span>
                           <span className="text-[10px] text-neutral-500">
-                            Inflow: ₹{Number(t.total_income).toLocaleString()} | Outflow: ₹{Number(t.total_spent).toLocaleString()}
+                            Inflow: {formatCurrency(Number(t.total_income), user?.currency)} | Outflow: {formatCurrency(Number(t.total_spent), user?.currency)}
                           </span>
                         </div>
                         <div className="text-right">
                           <span className={`block font-black text-xs ${surplus >= 0 ? "text-emerald-400" : "text-rose-400"} print:text-black`}>
-                            {surplus >= 0 ? "+" : ""}₹{surplus.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {surplus >= 0 ? "+" : ""}{formatCurrency(surplus, user?.currency)}
                           </span>
                           <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-bold mt-1 ${surplus >= 0 ? "bg-emerald-950/20 text-emerald-400" : "bg-rose-950/20 text-rose-400"} print:border`}>
                             {surplus >= 0 ? "Surplus" : "Deficit"}

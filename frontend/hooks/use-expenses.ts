@@ -15,6 +15,8 @@ export interface Expense {
   category_id: string | null;
   category: Category | null;
   amount: number;
+  currency: string;
+  amount_home_currency: number;
   merchant: string;
   payment_method: string;
   date: string;
@@ -118,6 +120,7 @@ export function useExpenseMutations() {
 
   const createExpense = async (data: {
     amount: number;
+    currency?: string;
     merchant: string;
     payment_method: string;
     date: string;
@@ -144,6 +147,7 @@ export function useExpenseMutations() {
     id: string,
     data: {
       amount?: number;
+      currency?: string;
       merchant?: string;
       payment_method?: string;
       date?: string;
