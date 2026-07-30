@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 import hashlib
+import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -210,7 +211,14 @@ async def reset_password(request: Request, payload: ResetPasswordRequest, db: As
             detail="Invalid or expired reset token",
         )
 
-    user_id = token_data.get("sub")
+    try:
+        user_id = uuid.UUID(token_data.get("sub"))
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token",
+        )
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalars().first()
     if not user:

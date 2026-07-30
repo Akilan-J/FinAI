@@ -1,3 +1,4 @@
+import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,8 +31,9 @@ async def get_current_user(
     if token_data.get("type") != "access":
         raise credentials_exception
 
-    user_id = token_data.get("sub")
-    if user_id is None:
+    try:
+        user_id = uuid.UUID(token_data.get("sub"))
+    except (TypeError, ValueError):
         raise credentials_exception
 
     # Fetch user from database
