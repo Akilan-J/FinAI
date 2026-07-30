@@ -46,7 +46,7 @@ async def get_summary(
     start_date, end_date = get_month_range(period)
 
     # 1. Total spent
-    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.date >= start_date,
         Expense.date <= end_date,
@@ -55,7 +55,7 @@ async def get_summary(
     total_spent = spent_res.scalar() or Decimal("0.00")
 
     # 2. Total income
-    income_stmt = select(func.coalesce(func.sum(Income.amount), 0)).where(
+    income_stmt = select(func.coalesce(func.sum(Income.amount_home_currency), 0)).where(
         Income.user_id == current_user.id,
         Income.date >= start_date,
         Income.date <= end_date,
@@ -85,7 +85,7 @@ async def get_summary(
         spent_subquery = (
             select(
                 Expense.category_id,
-                func.coalesce(func.sum(Expense.amount), 0).label("spent"),
+                func.coalesce(func.sum(Expense.amount_home_currency), 0).label("spent"),
             )
             .where(
                 Expense.user_id == current_user.id,
@@ -134,7 +134,7 @@ async def get_category_distribution(
     start_date, end_date = get_month_range(period)
 
     # Total spent to compute percentage
-    total_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    total_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.date >= start_date,
         Expense.date <= end_date,
@@ -149,7 +149,7 @@ async def get_category_distribution(
             Category.name,
             Category.color,
             Category.icon,
-            func.sum(Expense.amount).label("amount"),
+            func.sum(Expense.amount_home_currency).label("amount"),
         )
         .outerjoin(Category, Expense.category_id == Category.id)
         .where(
@@ -158,7 +158,7 @@ async def get_category_distribution(
             Expense.date <= end_date,
         )
         .group_by(Expense.category_id, Category.name, Category.color, Category.icon)
-        .order_by(func.sum(Expense.amount).desc())
+        .order_by(func.sum(Expense.amount_home_currency).desc())
     )
     res = await db.execute(stmt)
     rows = res.all()
@@ -204,7 +204,7 @@ async def get_monthly_trends(
     expense_stmt = (
         select(
             func.to_char(Expense.date, literal_column("'YYYY-MM'")).label("month"),
-            func.sum(Expense.amount).label("total"),
+            func.sum(Expense.amount_home_currency).label("total"),
         )
         .where(
             Expense.user_id == current_user.id,
@@ -219,7 +219,7 @@ async def get_monthly_trends(
     income_stmt = (
         select(
             func.to_char(Income.date, literal_column("'YYYY-MM'")).label("month"),
-            func.sum(Income.amount).label("total"),
+            func.sum(Income.amount_home_currency).label("total"),
         )
         .where(
             Income.user_id == current_user.id,
@@ -253,7 +253,7 @@ async def get_challenges_and_badges(
     start_date, end_date = get_month_range(period)
 
     # 1. Total spent & income in this period
-    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.date >= start_date,
         Expense.date <= end_date,
@@ -261,7 +261,7 @@ async def get_challenges_and_badges(
     spent_res = await db.execute(spent_stmt)
     total_spent = spent_res.scalar() or Decimal("0.00")
 
-    income_stmt = select(func.coalesce(func.sum(Income.amount), 0)).where(
+    income_stmt = select(func.coalesce(func.sum(Income.amount_home_currency), 0)).where(
         Income.user_id == current_user.id,
         Income.date >= start_date,
         Income.date <= end_date,
@@ -285,7 +285,7 @@ async def get_challenges_and_badges(
 
     over_budget_count = 0
     for b in user_budgets:
-        exp_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+        exp_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
             Expense.user_id == current_user.id,
             Expense.category_id == b.category_id,
             Expense.date >= start_date,

@@ -1,4 +1,5 @@
 from datetime import date
+from decimal import Decimal
 from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, and_, or_, desc, asc
@@ -17,8 +18,19 @@ from app.schemas.expense import (
     ExpenseResponse,
     BulkDeleteRequest,
 )
+from app.services import currency as currency_service
+from app.services.currency import CurrencyUnavailableError
 
 router = APIRouter()
+
+
+async def resolve_home_currency_amount(
+    amount: Decimal, currency: str | None, home_currency: str
+) -> tuple[str, Decimal]:
+    try:
+        return await currency_service.resolve_home_currency_amount(amount, currency, home_currency)
+    except CurrencyUnavailableError as e:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
 
 
 @router.post("", response_model=ResponseEnvelope[ExpenseResponse])
@@ -47,10 +59,16 @@ async def create_expense(
         )
         category = result.scalars().first()
 
+    resolved_currency, amount_home_currency = await resolve_home_currency_amount(
+        payload.amount, payload.currency, current_user.currency
+    )
+
     expense = Expense(
         user_id=current_user.id,
         category_id=category.id if category else None,
         amount=payload.amount,
+        currency=resolved_currency,
+        amount_home_currency=amount_home_currency,
         merchant=payload.merchant,
         payment_method=payload.payment_method,
         date=payload.date,
@@ -186,6 +204,17 @@ async def update_expense(
         expense.category_id = payload.category_id
 
     update_data = payload.model_dump(exclude_unset=True, exclude={"category_id"})
+
+    if "amount" in update_data or "currency" in update_data:
+        new_amount = update_data.get("amount", expense.amount)
+        new_currency = update_data.get("currency", expense.currency)
+        resolved_currency, amount_home_currency = await resolve_home_currency_amount(
+            new_amount, new_currency, current_user.currency
+        )
+        expense.currency = resolved_currency
+        expense.amount_home_currency = amount_home_currency
+        update_data.pop("currency", None)
+
     for key, value in update_data.items():
         setattr(expense, key, value)
 

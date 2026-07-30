@@ -5,6 +5,7 @@ from sqlalchemy import func, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.api.deps import get_current_user
+from app.api.v1.expenses import resolve_home_currency_amount  # HTTPException-wrapped
 from app.db.session import get_db
 from app.models.income import Income
 from app.models.user import User
@@ -20,10 +21,16 @@ async def create_income(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    resolved_currency, amount_home_currency = await resolve_home_currency_amount(
+        payload.amount, payload.currency, current_user.currency
+    )
+
     income = Income(
         user_id=current_user.id,
         source=payload.source,
         amount=payload.amount,
+        currency=resolved_currency,
+        amount_home_currency=amount_home_currency,
         date=payload.date,
         notes=payload.notes,
         is_recurring=payload.is_recurring,
@@ -106,6 +113,17 @@ async def update_income(
         )
 
     update_data = payload.model_dump(exclude_unset=True)
+
+    if "amount" in update_data or "currency" in update_data:
+        new_amount = update_data.get("amount", income.amount)
+        new_currency = update_data.get("currency", income.currency)
+        resolved_currency, amount_home_currency = await resolve_home_currency_amount(
+            new_amount, new_currency, current_user.currency
+        )
+        income.currency = resolved_currency
+        income.amount_home_currency = amount_home_currency
+        update_data.pop("currency", None)
+
     for key, value in update_data.items():
         setattr(income, key, value)
 

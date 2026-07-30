@@ -17,6 +17,8 @@ class Income(Base):
     )
     source: Mapped[str] = mapped_column(String(255), nullable=False)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="INR", nullable=False)
+    amount_home_currency: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     date: Mapped[date] = mapped_column(Date, index=True, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_recurring: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

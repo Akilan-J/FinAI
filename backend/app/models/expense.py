@@ -19,6 +19,10 @@ class Expense(Base):
         ForeignKey("categories.id", ondelete="SET NULL"), index=True, nullable=True
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), default="INR", nullable=False)
+    # amount converted to the user's home currency at the time this row was
+    # written — used for all cross-currency aggregation (budgets, analytics).
+    amount_home_currency: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
     merchant: Mapped[str] = mapped_column(String(255), nullable=False)
     payment_method: Mapped[str] = mapped_column(String(50), nullable=False)  # cash, card, upi, netbanking, wallet, other
     date: Mapped[date] = mapped_column(Date, index=True, nullable=False)

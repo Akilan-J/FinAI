@@ -247,11 +247,19 @@ async def get_me(current_user: User = Depends(get_current_user)):
     return ResponseEnvelope(data=UserResponse.model_validate(current_user))
 
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from app.services.currency import is_supported_currency
 
 class ProfileUpdatePayload(BaseModel):
     full_name: str | None = None
     currency: str | None = None
+
+    @field_validator("currency")
+    @classmethod
+    def validate_currency(cls, v: str | None) -> str | None:
+        if v is not None and not is_supported_currency(v):
+            raise ValueError(f"Unsupported currency: {v}")
+        return v.upper() if v else v
 
 
 @router.patch("/me", response_model=ResponseEnvelope[UserResponse])

@@ -125,7 +125,7 @@ async def create_budget(
 
     # Get spent amount
     start_date, end_date = get_month_range(payload.period)
-    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.category_id == payload.category_id,
         Expense.date >= start_date,
@@ -149,7 +149,7 @@ async def get_budgets(
     spent_subquery = (
         select(
             Expense.category_id,
-            func.coalesce(func.sum(Expense.amount), 0).label("spent"),
+            func.coalesce(func.sum(Expense.amount_home_currency), 0).label("spent"),
         )
         .where(
             Expense.user_id == current_user.id,
@@ -195,7 +195,7 @@ async def get_budget(
 
     # Get spent amount
     start_date, end_date = get_month_range(budget.period)
-    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.category_id == budget.category_id,
         Expense.date >= start_date,
@@ -242,7 +242,7 @@ async def update_budget(
 
     # Get spent amount
     start_date, end_date = get_month_range(budget.period)
-    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.category_id == budget.category_id,
         Expense.date >= start_date,
@@ -292,7 +292,7 @@ async def get_budget_progress(
 
     # Calculate spent
     start_date, end_date = get_month_range(budget.period)
-    spent_stmt = select(func.coalesce(func.sum(Expense.amount), 0)).where(
+    spent_stmt = select(func.coalesce(func.sum(Expense.amount_home_currency), 0)).where(
         Expense.user_id == current_user.id,
         Expense.category_id == budget.category_id,
         Expense.date >= start_date,

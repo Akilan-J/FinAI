@@ -9,6 +9,17 @@ from app.models.expense import Expense
 from app.models.category import Category
 from app.models.budget import Budget
 from app.models.income import Income
+from app.models.user import User
+from app.services.currency import resolve_home_currency_amount, SUPPORTED_CURRENCIES
+
+
+async def _get_user_currency(db: AsyncSession, user_id: uuid.UUID) -> str:
+    result = await db.execute(select(User.currency).where(User.id == user_id))
+    return result.scalar() or "INR"
+
+
+def _symbol(currency_code: str) -> str:
+    return SUPPORTED_CURRENCIES.get(currency_code, {}).get("symbol", currency_code)
 
 # =====================================================================
 # Core DB Tools (Async execution)
@@ -30,7 +41,7 @@ async def list_expenses_tool(db: AsyncSession, user_id: uuid.UUID, limit: int = 
     lines = []
     for e in expenses:
         category_name = e.category.name if e.category else "Uncategorized"
-        lines.append(f"- {e.date}: {e.merchant} - ₹{e.amount:.2f} ({category_name})")
+        lines.append(f"- {e.date}: {e.merchant} - {_symbol(e.currency)}{e.amount:.2f} ({category_name})")
     return "\n".join(lines)
 
 
@@ -48,17 +59,18 @@ async def list_budgets_tool(db: AsyncSession, user_id: uuid.UUID, period: str = 
     if not budgets:
         return f"No budgets set for period {period}."
     
+    symbol = _symbol(await _get_user_currency(db, user_id))
     lines = []
     for b in budgets:
         category_name = b.category.name if b.category else "Unknown"
-        lines.append(f"- {category_name}: Limit ₹{b.amount_limit:.2f} (Period: {b.period})")
+        lines.append(f"- {category_name}: Limit {symbol}{b.amount_limit:.2f} (Period: {b.period})")
     return "\n".join(lines)
 
 
 async def get_analytics_summary_tool(db: AsyncSession, user_id: uuid.UUID, period: str = None) -> str:
     if not period:
         period = datetime.now().strftime("%Y-%m")
-    
+
     try:
         start_date = datetime.strptime(f"{period}-01", "%Y-%m-%d").date()
         year, month = map(int, period.split("-"))
@@ -68,9 +80,9 @@ async def get_analytics_summary_tool(db: AsyncSession, user_id: uuid.UUID, perio
             end_date = date(year, month + 1, 1)
     except ValueError:
         return f"Invalid period format: {period}. Use YYYY-MM."
-        
+
     stmt_exp = (
-        select(func.coalesce(func.sum(Expense.amount), 0))
+        select(func.coalesce(func.sum(Expense.amount_home_currency), 0))
         .where(
             and_(
                 Expense.user_id == user_id,
@@ -83,7 +95,7 @@ async def get_analytics_summary_tool(db: AsyncSession, user_id: uuid.UUID, perio
     total_spent = res_exp.scalar() or Decimal("0.0")
 
     stmt_inc = (
-        select(func.coalesce(func.sum(Income.amount), 0))
+        select(func.coalesce(func.sum(Income.amount_home_currency), 0))
         .where(
             and_(
                 Income.user_id == user_id,
@@ -97,12 +109,13 @@ async def get_analytics_summary_tool(db: AsyncSession, user_id: uuid.UUID, perio
 
     savings = total_income - total_spent
     savings_rate = (savings / total_income * 100) if total_income > 0 else Decimal("0.0")
+    symbol = _symbol(await _get_user_currency(db, user_id))
 
     return (
         f"Analytics Summary for {period}:\n"
-        f"- Total Income: ₹{total_income:.2f}\n"
-        f"- Total Expenses: ₹{total_spent:.2f}\n"
-        f"- Net Savings: ₹{savings:.2f}\n"
+        f"- Total Income: {symbol}{total_income:.2f}\n"
+        f"- Total Expenses: {symbol}{total_spent:.2f}\n"
+        f"- Net Savings: {symbol}{savings:.2f}\n"
         f"- Savings Rate: {savings_rate:.1f}%"
     )
 
@@ -144,10 +157,17 @@ async def create_expense_tool(
             except ValueError:
                 pass
                 
+        home_currency = await _get_user_currency(db, user_id)
+        resolved_currency, amount_home_currency = await resolve_home_currency_amount(
+            Decimal(str(amount)), None, home_currency
+        )
+
         expense = Expense(
             user_id=user_id,
             category_id=category.id,
             amount=Decimal(str(amount)),
+            currency=resolved_currency,
+            amount_home_currency=amount_home_currency,
             merchant=merchant,
             payment_method=(payment_method.lower() if payment_method else "other"),
             date=parsed_date,
@@ -155,7 +175,7 @@ async def create_expense_tool(
         )
         db.add(expense)
         await db.commit()
-        return f"Successfully logged expense: ₹{amount:.2f} at {merchant} under '{category.name}' using {(payment_method or 'other').upper()} on {parsed_date}."
+        return f"Successfully logged expense: {_symbol(resolved_currency)}{amount:.2f} at {merchant} under '{category.name}' using {(payment_method or 'other').upper()} on {parsed_date}."
     except Exception as e:
         await db.rollback()
         return f"Failed to log expense: {str(e)}"
@@ -203,18 +223,19 @@ async def delete_expense_tool(
             options = []
             for exp in expenses:
                 cat_name = exp.category.name if exp.category else "Uncategorized"
-                options.append(f"- ID: {exp.id}, Merchant: {exp.merchant}, Amount: ₹{exp.amount:.2f}, Date: {exp.date} ({cat_name})")
+                options.append(f"- ID: {exp.id}, Merchant: {exp.merchant}, Amount: {_symbol(exp.currency)}{exp.amount:.2f}, Date: {exp.date} ({cat_name})")
             options_str = "\n".join(options)
             return f"Found multiple matching expenses. Please specify the exact date, amount, or merchant:\n{options_str}"
-            
+
         expense_to_delete = expenses[0]
         merchant_name = expense_to_delete.merchant
         deleted_amount = expense_to_delete.amount
+        deleted_symbol = _symbol(expense_to_delete.currency)
         deleted_date = expense_to_delete.date
-        
+
         await db.delete(expense_to_delete)
         await db.commit()
-        return f"Successfully deleted expense: ₹{deleted_amount:.2f} at {merchant_name} on {deleted_date}."
+        return f"Successfully deleted expense: {deleted_symbol}{deleted_amount:.2f} at {merchant_name} on {deleted_date}."
     except Exception as e:
         await db.rollback()
         return f"Failed to delete expense: {str(e)}"
@@ -268,17 +289,23 @@ async def update_expense_tool(
             options = []
             for exp in expenses:
                 cat_name = exp.category.name if exp.category else "Uncategorized"
-                options.append(f"- ID: {exp.id}, Merchant: {exp.merchant}, Amount: ₹{exp.amount:.2f}, Date: {exp.date} ({cat_name})")
+                options.append(f"- ID: {exp.id}, Merchant: {exp.merchant}, Amount: {_symbol(exp.currency)}{exp.amount:.2f}, Date: {exp.date} ({cat_name})")
             options_str = "\n".join(options)
             return f"Found multiple matching expenses. Please specify the exact ID, date, amount, or merchant:\n{options_str}"
-            
+
         expense_to_update = expenses[0]
-        original_details = f"₹{expense_to_update.amount:.2f} at {expense_to_update.merchant} on {expense_to_update.date}"
-        
+        original_details = f"{_symbol(expense_to_update.currency)}{expense_to_update.amount:.2f} at {expense_to_update.merchant} on {expense_to_update.date}"
+
         updates = []
         if new_amount is not None:
+            # Interpreted in the expense's existing transaction currency.
+            home_currency = await _get_user_currency(db, user_id)
+            _, amount_home_currency = await resolve_home_currency_amount(
+                Decimal(str(new_amount)), expense_to_update.currency, home_currency
+            )
             expense_to_update.amount = Decimal(str(new_amount))
-            updates.append(f"Amount to ₹{new_amount:.2f}")
+            expense_to_update.amount_home_currency = amount_home_currency
+            updates.append(f"Amount to {_symbol(expense_to_update.currency)}{new_amount:.2f}")
         if new_merchant:
             expense_to_update.merchant = new_merchant
             updates.append(f"Merchant to '{new_merchant}'")
@@ -379,7 +406,8 @@ async def create_budget_tool(
             db.add(budget)
             
         await db.commit()
-        return f"Successfully set budget of ₹{amount:.2f} for category '{category.name}' in period {period}."
+        symbol = _symbol(await _get_user_currency(db, user_id))
+        return f"Successfully set budget of {symbol}{amount:.2f} for category '{category.name}' in period {period}."
     except Exception as e:
         await db.rollback()
         return f"Failed to set budget: {str(e)}"
