@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -22,6 +20,30 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  # Runs OCR receipt processing asynchronously. Opt-in via profile since it
+  # needs backend/.env (API keys) to do real work — start it with:
+  #   docker compose --profile worker up -d celery_worker
+  # (CELERY_ALWAYS_EAGER=True still lets OCR run in-process without this,
+  # e.g. for a quick local try without Docker.)
+  celery_worker:
+    build:
+      context: ./backend
+    container_name: finai_celery_worker
+    restart: always
+    profiles:
+      - worker
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://finai_user:finai_password@postgres:5432/finai_db
+      REDIS_URL: redis://redis:6379/0
+      CELERY_ALWAYS_EAGER: "False"
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - ./backend:/app
 
 volumes:
   postgres_data:
