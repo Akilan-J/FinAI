@@ -1,10 +1,12 @@
 from datetime import datetime, timezone, timedelta
 import hashlib
-from fastapi import APIRouter, Depends, HTTPException, Response, Cookie, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Cookie, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.api.deps import get_current_user
 from app.core import security
+from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.db.session import get_db
 from app.models.session import UserSession
 from app.models.user import User
@@ -17,6 +19,7 @@ from app.schemas.auth import (
     ForgotPasswordRequest,
     ResetPasswordRequest,
 )
+from app.services.email import send_password_reset_email
 
 router = APIRouter()
 
@@ -26,7 +29,8 @@ def hash_token(token: str) -> str:
 
 
 @router.post("/register", response_model=ResponseEnvelope[UserResponse])
-async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def register(request: Request, payload: UserRegister, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == payload.email))
     existing_user = result.scalars().first()
     if existing_user:
@@ -50,7 +54,9 @@ async def register(payload: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=ResponseEnvelope[TokenResponse])
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     response: Response,
     payload: UserLogin,
     db: AsyncSession = Depends(get_db),
@@ -88,7 +94,7 @@ async def login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=False,  # Set to True in production
+        secure=settings.is_production,
         samesite="lax",
         expires=expires_at,
     )
@@ -149,7 +155,7 @@ async def refresh(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=False,
+        secure=settings.is_production,
         samesite="lax",
         expires=new_expires_at,
     )
@@ -178,26 +184,27 @@ async def logout(
 
 
 @router.post("/forgot-password", response_model=ResponseEnvelope[dict])
-async def forgot_password(payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("5/minute")
+async def forgot_password(request: Request, payload: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)):
+    generic_response = ResponseEnvelope(data={"message": "If the email exists, a reset link has been sent."})
+
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalars().first()
     if not user:
-        return ResponseEnvelope(data={"message": "If the email exists, a reset link has been sent."})
+        return generic_response
 
-    reset_token = security.create_access_token(user.id, expires_delta=timedelta(hours=1))
+    reset_token = security.create_password_reset_token(user.id, expires_delta=timedelta(hours=1))
+    reset_link = f"{settings.FRONTEND_URL}/reset-password?token={reset_token}"
+    send_password_reset_email(user.email, reset_link)
 
-    return ResponseEnvelope(
-        data={
-            "message": "Reset link generated.",
-            "dev_reset_token": reset_token,
-        }
-    )
+    return generic_response
 
 
 @router.post("/reset-password", response_model=ResponseEnvelope[dict])
-async def reset_password(payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def reset_password(request: Request, payload: ResetPasswordRequest, db: AsyncSession = Depends(get_db)):
     token_data = security.decode_token(payload.token)
-    if not token_data or token_data.get("type") != "access":
+    if not token_data or token_data.get("type") != "password_reset":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid or expired reset token",

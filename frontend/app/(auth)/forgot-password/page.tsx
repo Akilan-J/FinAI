@@ -8,7 +8,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [devToken, setDevToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -16,14 +15,11 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetchApi("/auth/forgot-password", {
+      await fetchApi("/auth/forgot-password", {
         method: "POST",
         json: { email },
       });
       setSuccess(true);
-      if (response.data?.dev_reset_token) {
-        setDevToken(response.data.dev_reset_token);
-      }
     } catch (err: any) {
       setError(err.message || "Failed to submit request. Please try again.");
     } finally {
@@ -60,31 +56,8 @@ export default function ForgotPasswordPage() {
         {success ? (
           <div className="space-y-6">
             <div className="p-4 rounded-lg bg-emerald-950/30 border border-emerald-800/50 text-emerald-400 text-sm text-center">
-              We have generated a password reset request.
+              If an account exists for that email, we've sent a link to reset your password.
             </div>
-
-            {devToken && (
-              <div className="bg-neutral-950 p-4 rounded-xl border border-neutral-800 text-xs space-y-2">
-                <span className="font-semibold text-amber-400 block">DEVELOPMENT RESET SHORTCUT:</span>
-                <p className="text-neutral-400">
-                  Since this is local dev, copy this token to apply it on the reset page:
-                </p>
-                <textarea
-                  readOnly
-                  value={devToken}
-                  className="w-full h-20 bg-neutral-900 border border-neutral-800 p-2 rounded text-neutral-300 font-mono focus:outline-none resize-none"
-                  onClick={(e) => (e.target as HTMLTextAreaElement).select()}
-                />
-                <div className="text-right">
-                  <Link
-                    href={`/reset-password?token=${encodeURIComponent(devToken)}`}
-                    className="inline-block text-xs font-semibold text-violet-400 hover:text-violet-300 transition"
-                  >
-                    Go to Reset Password &rarr;
-                  </Link>
-                </div>
-              </div>
-            )}
 
             <div className="text-center">
               <Link

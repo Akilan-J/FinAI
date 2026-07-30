@@ -1,12 +1,22 @@
+import logging
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.logging import configure_logging
+from app.core.rate_limit import limiter
 from app.db.session import async_session_maker
 from app.db.seeding import seed_default_categories
+
+configure_logging()
+logger = logging.getLogger("finai.startup")
+
+settings.validate_production_secrets()
 
 # Import all SQLAlchemy models to register them on startup
 from app.models.user import User
@@ -34,6 +44,14 @@ app = FastAPI(
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     lifespan=lifespan,
 )
+
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return await _rate_limit_exceeded_handler(request, exc)
+
 
 # Set CORS origins
 if settings.BACKEND_CORS_ORIGINS:
