@@ -10,6 +10,12 @@ export default function LoansPage() {
   const { loans, loading, error, refetch } = useLoans();
   const { createLoan, updateLoan, deleteLoan } = useLoanMutations();
 
+  const [toast, setToast] = useState<{ message: string; tone: "error" | "success" } | null>(null);
+  const showToast = (message: string, tone: "error" | "success" = "error") => {
+    setToast({ message, tone });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   // Filter Tab State
   const [filterTab, setFilterTab] = useState<"all" | "lent" | "borrowed" | "pending" | "settled">("all");
 
@@ -34,6 +40,10 @@ export default function LoansPage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (error) showToast("Failed to load loan records. Please refresh the page.");
+  }, [error]);
 
   const handleStartEdit = (loan: Loan) => {
     setEditRecordId(loan.id);
@@ -72,8 +82,9 @@ export default function LoansPage() {
 
       setEditRecordId(null);
       refetch();
+      showToast("Record updated successfully.", "success");
     } catch (err) {
-      alert("Failed to update record. Check if date format matches DD/MM/YYYY.");
+      showToast("Failed to update record. Check if date format matches DD/MM/YYYY.");
     }
   };
 
@@ -110,8 +121,9 @@ export default function LoansPage() {
       setDueDate("");
       setShowAddForm(false);
       refetch();
+      showToast("Debt entry recorded.", "success");
     } catch (err) {
-      alert("Failed to record debt. Check if date format matches DD/MM/YYYY.");
+      showToast("Failed to record debt. Check if date format matches DD/MM/YYYY.");
     }
   };
 
@@ -130,8 +142,9 @@ export default function LoansPage() {
       setEditingLoanId(null);
       setPaymentAmount("");
       refetch();
+      showToast("Payment recorded.", "success");
     } catch (err) {
-      alert("Failed to update repayment progress.");
+      showToast("Failed to update repayment progress.");
     }
   };
 
@@ -143,8 +156,9 @@ export default function LoansPage() {
         status: "settled",
       });
       refetch();
+      showToast("Debt settled in full.", "success");
     } catch (err) {
-      alert("Failed to settle debt.");
+      showToast("Failed to settle debt.");
     }
   };
 
@@ -153,8 +167,9 @@ export default function LoansPage() {
     try {
       await deleteLoan(id);
       refetch();
+      showToast("Record deleted.", "success");
     } catch (err) {
-      alert("Failed to delete loan entry.");
+      showToast("Failed to delete loan entry.");
     }
   };
 
@@ -179,6 +194,19 @@ export default function LoansPage() {
 
   return (
     <div className="flex-1 flex flex-col space-y-6">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl border text-xs font-semibold shadow-2xl backdrop-blur-md ${
+            toast.tone === "error"
+              ? "bg-rose-950/80 border-rose-800/60 text-rose-300"
+              : "bg-emerald-950/80 border-emerald-800/60 text-emerald-300"
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -325,11 +353,17 @@ export default function LoansPage() {
           {filteredLoans.map((loan) => {
             const outstanding = Number(loan.amount) - Number(loan.paid_amount);
             const percent = Math.min(100, Math.max(0, (Number(loan.paid_amount) / Number(loan.amount)) * 100));
+            const isOverdue =
+              loan.status === "pending" &&
+              !!loan.due_date &&
+              loan.due_date < new Date().toISOString().slice(0, 10);
 
             return (
               <div
                 key={loan.id}
-                className="bg-neutral-900/10 border border-neutral-800/60 p-5 rounded-2xl flex flex-col justify-between space-y-4"
+                className={`bg-neutral-900/10 border p-5 rounded-2xl flex flex-col justify-between space-y-4 ${
+                  isOverdue ? "border-amber-700/50" : "border-neutral-800/60"
+                }`}
               >
                 {editRecordId === loan.id ? (
                   <form onSubmit={(e) => handleUpdateRecord(e, loan.id)} className="space-y-4">
@@ -407,12 +441,19 @@ export default function LoansPage() {
                         <span className="block font-bold text-neutral-200 text-sm">
                           {loan.friend_name}
                         </span>
-                        <span className="text-[10px] text-neutral-500 mt-1 block">
-                          {loan.due_date ? `Due Date: ${formatDateToDDMMYYYY(loan.due_date)}` : "No Target Due Date"}
+                        <span className={`text-[10px] mt-1 block font-semibold ${isOverdue ? "text-amber-400" : "text-neutral-500 font-normal"}`}>
+                          {loan.due_date
+                            ? `${isOverdue ? "Overdue since" : "Due Date:"} ${formatDateToDDMMYYYY(loan.due_date)}`
+                            : "No Target Due Date"}
                         </span>
                       </div>
 
                       <div className="flex items-center gap-2">
+                        {isOverdue && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-950/20 border border-amber-800/30 text-amber-400">
+                            Overdue
+                          </span>
+                        )}
                         <span
                           className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
                             loan.type === "lent"
