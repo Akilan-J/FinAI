@@ -20,6 +20,7 @@ async function handleRefresh(): Promise<string | null> {
     try {
       const response = await fetch(`${BASE_URL}/auth/refresh`, {
         method: "POST",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },

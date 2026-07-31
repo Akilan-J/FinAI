@@ -1,5 +1,31 @@
 from unittest.mock import patch
 
+from app.core.config import settings
+
+
+async def test_login_cookie_is_lax_in_development(client, registered_user):
+    response = await client.post(
+        "/auth/login",
+        json={"email": registered_user["email"], "password": registered_user["password"]},
+    )
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "samesite=lax" in set_cookie.lower()
+    assert "secure" not in set_cookie.lower()
+
+
+async def test_login_cookie_is_samesite_none_secure_in_production(client, registered_user):
+    # Vercel (frontend) and Railway (backend) are different sites, so the
+    # refresh-token cookie must be SameSite=None (paired with Secure) to be
+    # sent on cross-site fetch calls at all.
+    with patch.object(settings, "ENVIRONMENT", "production"):
+        response = await client.post(
+            "/auth/login",
+            json={"email": registered_user["email"], "password": registered_user["password"]},
+        )
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "samesite=none" in set_cookie.lower()
+    assert "secure" in set_cookie.lower()
+
 
 async def test_register_creates_user(client):
     response = await client.post(

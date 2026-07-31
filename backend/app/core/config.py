@@ -96,6 +96,15 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.ENVIRONMENT.lower() == "production"
 
+    @property
+    def refresh_cookie_samesite(self) -> str:
+        # In production the frontend and backend are on different sites
+        # (e.g. Vercel + Railway), so the refresh-token cookie must be
+        # SameSite=None (which browsers require pairing with Secure) to be
+        # sent on cross-site fetch/XHR calls at all. Lax is fine locally,
+        # where frontend/backend share the "localhost" site.
+        return "none" if self.is_production else "lax"
+
     def validate_production_secrets(self) -> None:
         """Fail fast on startup rather than silently running insecure in prod."""
         if not self.is_production:

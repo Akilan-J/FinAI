@@ -96,7 +96,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         secure=settings.is_production,
-        samesite="lax",
+        samesite=settings.refresh_cookie_samesite,
         expires=expires_at,
     )
 
@@ -117,7 +117,7 @@ async def refresh(
 
     refresh_data = security.decode_token(refresh_token)
     if not refresh_data or refresh_data.get("type") != "refresh":
-        response.delete_cookie("refresh_token")
+        response.delete_cookie("refresh_token", secure=settings.is_production, samesite=settings.refresh_cookie_samesite)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid refresh token",
@@ -134,7 +134,7 @@ async def refresh(
     )
     db_session = result.scalars().first()
     if not db_session or db_session.expires_at.replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
-        response.delete_cookie("refresh_token")
+        response.delete_cookie("refresh_token", secure=settings.is_production, samesite=settings.refresh_cookie_samesite)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Session expired or revoked",
@@ -157,7 +157,7 @@ async def refresh(
         value=new_refresh_token,
         httponly=True,
         secure=settings.is_production,
-        samesite="lax",
+        samesite=settings.refresh_cookie_samesite,
         expires=new_expires_at,
     )
 
@@ -180,7 +180,7 @@ async def logout(
             db_session.revoked = True
             await db.commit()
 
-    response.delete_cookie("refresh_token")
+    response.delete_cookie("refresh_token", secure=settings.is_production, samesite=settings.refresh_cookie_samesite)
     return ResponseEnvelope(data={"message": "Logged out successfully"})
 
 
