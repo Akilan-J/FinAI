@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import * as Icons from "lucide-react";
 import { useAuth } from "@/stores/auth-store";
 
@@ -24,10 +24,21 @@ function NavIcon({ name, className = "w-5 h-5" }: { name: string; className?: st
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  if (loading) {
+  // Route protection lives here, client-side, rather than in middleware:
+  // the refresh_token cookie belongs to the backend's domain (Railway), not
+  // this frontend's (Vercel) — server-side middleware here can never see it,
+  // so it can't reliably tell whether a request is authenticated.
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
+    }
+  }, [loading, user, pathname, router]);
+
+  if (loading || !user) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center bg-neutral-950">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-violet-500 border-r-2" />
