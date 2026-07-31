@@ -113,7 +113,8 @@ Add a new service from the same repo, then in its **Settings**:
   SMTP_FROM_EMAIL=no-reply@yourdomain.com
   ```
   (`DATABASE_URL`/`REDIS_URL` accept Railway's `postgres://`/`redis://` format directly — the app rewrites the scheme itself. `BACKEND_CORS_ORIGINS` accepts a comma-separated list, not just JSON.)
-- Railway auto-detects the `Dockerfile` and reads `railway.json` for the health check. The container runs `alembic upgrade head` before starting the API on every deploy, so migrations never need a manual step.
+- Railway auto-detects the `Dockerfile` from `railway.json` (build settings only — there's deliberately no `healthcheckPath` in the file, see below). The container runs `alembic upgrade head` before starting the API on every deploy, so migrations never need a manual step.
+- **Settings → Deploy → Healthcheck Path**: set this to `/api/v1/health` **on this service, via the dashboard, not in `railway.json`**. Both the API and worker services share `backend/railway.json` (same root directory), so a healthcheck defined there gets pushed onto *both* every time you deploy — including the worker, which has no HTTP server to answer it and would fail every deploy waiting on a check that can never pass. Setting it only in the dashboard on this specific service avoids that.
 - Once deployed, copy its public URL (Settings → Networking → **Generate Domain**) — you'll need it for the Vercel deployment below.
 
 ### 3. Celery worker service
@@ -121,7 +122,7 @@ Add a new service from the same repo, then in its **Settings**:
 Add **another** service from the same repo:
 - **Root Directory**: `backend` (same code, no separate Dockerfile)
 - **Settings → Deploy → Custom Start Command**: `celery -A app.core.celery_app.celery worker --loglevel=info --concurrency=2` (this overrides the Dockerfile's default CMD, so it doesn't also try to run migrations/uvicorn). The `--concurrency=2` matters more than it looks: Celery's prefork pool defaults to one process per CPU core it detects, which on a cloud host can be far more cores than the container's actual memory budget supports — each forked process loads the whole app, so an unset concurrency can OOM-crash-loop a small container.
-- **Settings → Deploy → Healthcheck Path**: leave this empty on the worker service. The repo's `railway.json` sets a healthcheck path for the API service, but a Celery worker has no HTTP server to answer it — Railway would wait out the timeout and mark every deploy failed.
+- **Settings → Deploy → Healthcheck Path**: leave this empty. (See the note above — as long as neither service's `railway.json` defines one, there's nothing to conflict with.)
 - Same environment variables as the API service above (it needs `DATABASE_URL`, `REDIS_URL`, and the OCR provider keys) — reuse variables via Railway's "variable references" between services instead of retyping them, or use a [shared variable group](https://docs.railway.com/guides/variables#shared-variables).
 - **Don't** generate a public domain for this one; it doesn't serve HTTP.
 
