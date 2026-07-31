@@ -1,5 +1,6 @@
-from typing import List, Optional
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing import Annotated, Any, List, Optional
+from pydantic import field_validator
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 from dotenv import load_dotenv
 
 # Load .env file into environment variables
@@ -23,7 +24,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = "http://localhost:3000"
 
     # CORS Origins
-    BACKEND_CORS_ORIGINS: List[str] = [
+    BACKEND_CORS_ORIGINS: Annotated[List[str], NoDecode] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
@@ -63,6 +64,33 @@ class Settings(BaseSettings):
         case_sensitive=True,
         extra="ignore"
     )
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def split_cors_origins(cls, v: Any) -> Any:
+        # NoDecode means this always arrives as a raw string when sourced
+        # from an env var. Accept a JSON list or a plain comma-separated
+        # string (easy to paste into a platform's env-var UI).
+        if isinstance(v, str):
+            stripped = v.strip()
+            if stripped.startswith("["):
+                import json
+
+                return json.loads(stripped)
+            return [origin.strip() for origin in stripped.split(",") if origin.strip()]
+        return v
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        # Managed Postgres providers (Railway, Heroku, etc.) hand out
+        # postgres:// or postgresql:// URLs; SQLAlchemy's async engine needs
+        # the +asyncpg driver suffix.
+        if v.startswith("postgres://"):
+            return "postgresql+asyncpg://" + v[len("postgres://"):]
+        if v.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + v[len("postgresql://"):]
+        return v
 
     @property
     def is_production(self) -> bool:

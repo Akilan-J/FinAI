@@ -44,6 +44,7 @@ services:
       - redis
     volumes:
       - ./backend:/app
+    command: celery -A app.core.celery_app.celery worker --loglevel=info
 
 volumes:
   postgres_data:
