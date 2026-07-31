@@ -44,7 +44,11 @@ services:
       - redis
     volumes:
       - ./backend:/app
-    command: celery -A app.core.celery_app.celery worker --loglevel=info
+    # Explicit concurrency: Celery's prefork pool defaults to one process per
+    # detected CPU core, which on a shared/cloud host can wildly overshoot
+    # the container's actual memory budget (each process loads the full app).
+    # This worker only processes occasional OCR jobs, not high throughput.
+    command: celery -A app.core.celery_app.celery worker --loglevel=info --concurrency=2
 
 volumes:
   postgres_data:
