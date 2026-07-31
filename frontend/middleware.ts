@@ -11,7 +11,15 @@ export function middleware(request: NextRequest) {
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password");
 
-  if (!refreshToken && !isAuthPage && pathname !== "/") {
+  const isHome = pathname === "/";
+
+  if (isHome) {
+    return NextResponse.redirect(
+      new URL(refreshToken ? "/dashboard" : "/login", request.url)
+    );
+  }
+
+  if (!refreshToken && !isAuthPage) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(loginUrl);
