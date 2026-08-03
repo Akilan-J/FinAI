@@ -524,6 +524,25 @@ def create_budget(amount: float, category_name: str, period: str = None) -> str:
     return ""
 
 
+def _build_system_prompt() -> str:
+    # The model has no innate awareness of the real current date — without
+    # this, it guesses a year from training-data patterns (observed
+    # defaulting to 2024) instead of the app's actual runtime clock, silently
+    # misdating any expense logged with a partial date ("July 17", no year).
+    today = date.today().isoformat()
+    return (
+        f"You are FinAI, a helpful personal finance assistant. Today's date is {today}. "
+        "Respond politely and concisely. "
+        "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee yesterday and 200 on lunch on 2026-07-05'), "
+        "you must generate separate parallel tool calls for each individual expense, extracting their corresponding date_str if specified "
+        "(otherwise defaulting to today's date above). If a date is given without a year (e.g. 'July 17'), assume the current year from "
+        "today's date unless that would place the date in the future, in which case use the previous year. "
+        "You can also modify or delete expenses via update_expense and delete_expense tools. "
+        "Use function calling tools when the user requests database information, logging, updates, deletions, or budgets. "
+        "Format responses nicely in markdown."
+    )
+
+
 async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.UUID):
     latest_prompt = messages[-1]["content"] if messages else ""
     openrouter_key = os.getenv("OPENROUTER_API_KEY")
@@ -663,14 +682,7 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
             openai_messages = [
                 {
                     "role": "system",
-                    "content": (
-                        "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
-                        "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee yesterday and 200 on lunch on 2026-07-05'), "
-                        "you must generate separate parallel tool calls for each individual expense, extracting their corresponding date_str if specified (otherwise defaulting to current date). "
-                        "You can also modify or delete expenses via update_expense and delete_expense tools. "
-                        "Use function calling tools when the user requests database information, logging, updates, deletions, or budgets. "
-                        "Format responses nicely in markdown."
-                    )
+                    "content": _build_system_prompt()
                 }
             ]
             for m in messages:
@@ -784,14 +796,7 @@ async def stream_chat_response(messages: list, db: AsyncSession, user_id: uuid.U
         model = genai.GenerativeModel(
             model_name="gemini-1.5-flash",
             tools=[list_expenses, list_budgets, get_analytics_summary, create_expense, update_expense, delete_expense, create_budget],
-            system_instruction=(
-                "You are FinAI, a helpful personal finance assistant. Respond politely and concisely. "
-                "If the user asks to log multiple expenses at once (e.g. 'I spent 150 on coffee yesterday and 200 on lunch on 2026-07-05'), "
-                "you must generate separate parallel tool calls for each individual expense, extracting their corresponding date_str if specified (otherwise defaulting to current date). "
-                "You can also modify or delete expenses via update_expense and delete_expense tools. "
-                "Use function calling tools when the user requests database information, logging, updates, deletions, or budgets. "
-                "Format responses nicely in markdown."
-            )
+            system_instruction=_build_system_prompt()
         )
         
         chat = model.start_chat(enable_automatic_function_calling=False)
