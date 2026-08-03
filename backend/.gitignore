@@ -19,3 +19,6 @@ env/
 # Uploaded Static Files
 static/
 
+# Database backups (contain real user data — never commit)
+db_backups/
+
